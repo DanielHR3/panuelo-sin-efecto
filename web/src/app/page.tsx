@@ -235,12 +235,6 @@ export default function Home() {
                 <button onClick={() => handleSelect("Conducta Antideportiva")} className="p-5 rounded-2xl border-2 border-orange-500/30 font-black text-xl hover:bg-orange-500/10 animate-pop text-orange-600 dark:text-orange-400">
                   🤬 Conducta Antideportiva
                 </button>
-                <button onClick={() => handleSelect("Holding / Uso Ilegal")} className="p-5 rounded-2xl border-2 border-foreground/10 font-black text-xl hover:bg-foreground/5 animate-pop">
-                  👕 Holding / Uso Ilegal
-                </button>
-                <button onClick={() => handleSelect("Offside / Falso Arranque")} className="p-5 rounded-2xl border-2 border-foreground/10 font-black text-xl hover:bg-foreground/5 animate-pop">
-                  🛑 Offside / Falso Arranque
-                </button>
               </div>
             )}
 
