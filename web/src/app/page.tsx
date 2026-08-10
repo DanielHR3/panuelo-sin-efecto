@@ -31,11 +31,11 @@ const EQUIPOS = {
 type Player = typeof EQUIPOS.local.roster[0];
 
 type ModalFlow = {
-  team: "local" | "visitor";
-  points: number;
-  actionName: string; // "Touchdown", "Punto Extra", "Conversión"
-  step: "select_type" | "select_qb" | "select_receiver" | "select_runner" | "select_defender" | "select_player";
-  playType?: "Pase" | "Carrera" | "Pick Six";
+  team?: "local" | "visitor";
+  points?: number;
+  actionName: string;
+  step: "select_type" | "select_qb" | "select_receiver" | "select_runner" | "select_defender" | "select_player" | "select_flag_type" | "select_flag_team" | "select_flag_player";
+  playType?: string;
   qb?: Player;
 };
 
@@ -62,7 +62,6 @@ export default function Home() {
   const handleScoreIntent = (team: "local" | "visitor", points: number, actionName: string) => {
     vibrate(50);
     if (points > 0) {
-      // Si es Touchdown (+6), preguntamos el tipo de jugada. Si no, solo el jugador.
       const initialStep = points === 6 ? "select_type" : "select_player";
       setFlow({ team, points, actionName, step: initialStep });
       setModalOpen(true);
@@ -73,31 +72,49 @@ export default function Home() {
     }
   };
 
-  const finalizeScore = (description: string) => {
+  const handleFlagIntent = () => {
+    vibrate(100);
+    setFlow({ actionName: "FLAG", step: "select_flag_type" });
+    setModalOpen(true);
+  };
+
+  const finalizeAction = (description: string) => {
     vibrate([50, 50, 50]);
     if (!flow) return;
 
-    if (flow.team === "local") setLocalScore((prev) => prev + flow.points);
-    else setVisitorScore((prev) => prev + flow.points);
+    if (flow.points && flow.team) {
+      if (flow.team === "local") setLocalScore((prev) => prev + flow.points!);
+      else setVisitorScore((prev) => prev + flow.points!);
+    }
 
     setLastEvent(`${flow.actionName}: ${description}`);
     setModalOpen(false);
     setFlow(null);
   };
 
-  const handlePlayerSelect = (jugador: Player) => {
+  const handleSelect = (data: any) => {
     if (!flow) return;
 
+    // Flujo de Anotaciones
     if (flow.step === "select_qb") {
-      setFlow({ ...flow, step: "select_receiver", qb: jugador });
+      setFlow({ ...flow, step: "select_receiver", qb: data });
     } else if (flow.step === "select_receiver") {
-      finalizeScore(`Pase de #${flow.qb?.jersey} a #${jugador.jersey}`);
+      finalizeAction(`Pase de #${flow.qb?.jersey} a #${data.jersey}`);
     } else if (flow.step === "select_runner") {
-      finalizeScore(`Carrera de #${jugador.jersey}`);
+      finalizeAction(`Carrera de #${data.jersey}`);
     } else if (flow.step === "select_defender") {
-      finalizeScore(`Pick Six de #${jugador.jersey}`);
+      finalizeAction(`Pick Six de #${data.jersey}`);
     } else if (flow.step === "select_player") {
-      finalizeScore(`#${jugador.jersey} ${jugador.nombre}`);
+      finalizeAction(`#${data.jersey} ${data.nombre}`);
+    } 
+    
+    // Flujo de Flags
+    else if (flow.step === "select_flag_type") {
+      setFlow({ ...flow, step: "select_flag_team", playType: data });
+    } else if (flow.step === "select_flag_team") {
+      setFlow({ ...flow, step: "select_flag_player", team: data });
+    } else if (flow.step === "select_flag_player") {
+      finalizeAction(`${flow.playType} - ${flow.team === 'local' ? EQUIPOS.local.nombre : EQUIPOS.visitor.nombre} #${data.jersey}`);
     }
   };
 
@@ -160,11 +177,11 @@ export default function Home() {
 
       {/* ACCIONES INFERIORES */}
       <div className="grid grid-cols-3 gap-3 mt-2 pb-6">
-        <button onClick={() => { vibrate(); setLastEvent("Sack registrado"); }} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center">
+        <button onClick={() => { vibrate(); setLastEvent("Sack / Intercepción"); }} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center">
           🛡️ Sack/<br/>Pick
         </button>
-        <button onClick={() => vibrate(100)} className="glass-panel rounded-2xl py-4 flex flex-col items-center justify-center font-black animate-pop border-b-4 border-b-yellow-500 shadow-lg text-lg">
-          🟨 FALTA
+        <button onClick={handleFlagIntent} className="glass-panel rounded-2xl py-4 flex flex-col items-center justify-center font-black animate-pop border-b-4 border-b-yellow-400 bg-yellow-500/10 shadow-lg text-lg text-yellow-600 dark:text-yellow-400">
+          🟨 FLAG
         </button>
         <button onClick={() => handleScoreIntent("local", -1, "Undo")} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm">
           ↩️ Undo
@@ -186,6 +203,9 @@ export default function Home() {
                   {flow.step === "select_runner" && "Selecciona al CORREDOR"}
                   {flow.step === "select_defender" && "Selecciona al DEFENSIVO"}
                   {flow.step === "select_player" && "¿Quién anotó?"}
+                  {flow.step === "select_flag_type" && "¿Qué tipo de castigo?"}
+                  {flow.step === "select_flag_team" && "¿Qué equipo cometió la falta?"}
+                  {flow.step === "select_flag_player" && "¿Qué jugador fue?"}
                 </p>
               </div>
               <button onClick={() => setModalOpen(false)} className="p-3 bg-foreground/5 rounded-full font-bold">X</button>
@@ -206,13 +226,45 @@ export default function Home() {
               </div>
             )}
 
-            {/* PANTALLA 2: Selector de Jugador */}
-            {flow.step !== "select_type" && (
+            {/* PANTALLA TIPO DE FLAG */}
+            {flow.step === "select_flag_type" && (
+              <div className="grid grid-cols-1 gap-3">
+                <button onClick={() => handleSelect("Foul Personal")} className="p-5 rounded-2xl border-2 border-yellow-500/30 font-black text-xl hover:bg-yellow-500/10 animate-pop text-yellow-600 dark:text-yellow-400">
+                  ⚠️ Foul Personal
+                </button>
+                <button onClick={() => handleSelect("Conducta Antideportiva")} className="p-5 rounded-2xl border-2 border-orange-500/30 font-black text-xl hover:bg-orange-500/10 animate-pop text-orange-600 dark:text-orange-400">
+                  🤬 Conducta Antideportiva
+                </button>
+                <button onClick={() => handleSelect("Holding / Uso Ilegal")} className="p-5 rounded-2xl border-2 border-foreground/10 font-black text-xl hover:bg-foreground/5 animate-pop">
+                  👕 Holding / Uso Ilegal
+                </button>
+                <button onClick={() => handleSelect("Offside / Falso Arranque")} className="p-5 rounded-2xl border-2 border-foreground/10 font-black text-xl hover:bg-foreground/5 animate-pop">
+                  🛑 Offside / Falso Arranque
+                </button>
+              </div>
+            )}
+
+            {/* PANTALLA EQUIPO FLAG */}
+            {flow.step === "select_flag_team" && (
+              <div className="grid grid-cols-2 gap-4">
+                <button onClick={() => handleSelect("local")} className="p-6 rounded-2xl border-4 border-team-a/30 font-black text-xl animate-pop text-team-a flex flex-col items-center gap-2">
+                  <span className="text-4xl">{EQUIPOS.local.logo}</span>
+                  {EQUIPOS.local.nombre}
+                </button>
+                <button onClick={() => handleSelect("visitor")} className="p-6 rounded-2xl border-4 border-team-b/30 font-black text-xl animate-pop text-team-b flex flex-col items-center gap-2">
+                  <span className="text-4xl">{EQUIPOS.visitor.logo}</span>
+                  {EQUIPOS.visitor.nombre}
+                </button>
+              </div>
+            )}
+
+            {/* PANTALLA SELECTOR DE JUGADORES */}
+            {["select_qb", "select_receiver", "select_runner", "select_defender", "select_player", "select_flag_player"].includes(flow.step) && (
               <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[45vh] pr-2">
-                {EQUIPOS[flow.team].roster.map((jugador) => (
+                {EQUIPOS[flow.team!].roster.map((jugador) => (
                   <button 
                     key={jugador.id}
-                    onClick={() => handlePlayerSelect(jugador)}
+                    onClick={() => handleSelect(jugador)}
                     className={`flex flex-col items-center justify-center gap-1 p-4 rounded-2xl border-2 hover:bg-foreground/5 active:scale-95 transition-transform ${flow.team === 'local' ? 'border-team-a/30' : 'border-team-b/30'}`}
                   >
                     <span className={`text-4xl font-black ${flow.team === 'local' ? 'text-team-a' : 'text-team-b'}`}>
