@@ -3,7 +3,7 @@
 ## Stack Tecnológico
 - NestJS.
 - Prisma ORM.
-- PostgreSQL (Supabase).
+- SQLite (Desarrollo) / PostgreSQL (Producción).
 - TypeScript.
 
 ## Reglas de Arquitectura y Patrones

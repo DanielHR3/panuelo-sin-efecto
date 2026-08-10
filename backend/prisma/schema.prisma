@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Usuario {
+  id                 String               @id @default(uuid())
+  nombre             String
+  email              String               @unique
+  passwordHash       String
+  rol                String               // 'SUPERADMIN', 'LIGA_ADMIN', 'ARBITRO'
+  
+  ligasPropias       Liga[]               @relation("PropietarioLiga")
+  asignaciones       AsignacionArbitral[]
+  eventosRegistrados EventoPartido[]      @relation("ArbitroRegistrador")
+  
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model Liga {
+  id            String      @id @default(uuid())
+  nombre        String
+  
+  propietarioId String
+  propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
+  
+  categorias    Categoria[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Categoria {
+  id            String      @id @default(uuid())
+  nombre        String      // Ej. Varonil, Femenil, Mixto
+  
+  ligaId        String
+  liga          Liga        @relation(fields: [ligaId], references: [id])
+  
+  equipos       Equipo[]
+  partidos      Partido[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Equipo {
+  id                String          @id @default(uuid())
+  nombre            String
+  colorPrimario     String?
+  
+  categoriaId       String
+  categoria         Categoria       @relation(fields: [categoriaId], references: [id])
+  
+  jugadores         Jugador[]
+  
+  partidosLocal     Partido[]       @relation("EquipoLocal")
+  partidosVisitante Partido[]       @relation("EquipoVisitante")
+  
+  eventos           EventoPartido[]
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model Jugador {
+  id            String          @id @default(uuid())
+  nombre        String
+  numeroJersey  String
+  
+  equipoId      String
+  equipo        Equipo          @relation(fields: [equipoId], references: [id])
+  
+  eventos       EventoPartido[]
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Partido {
+  id                String               @id @default(uuid())
+  fechaHora         DateTime
+  dificultad        String               // REGULAR, MEDIO, COMPLICADO
+  estado            String               // PROGRAMADO, EN_CURSO, FINALIZADO
+  marcadorLocal     Int                  @default(0)
+  marcadorVisitante Int                  @default(0)
+  
+  categoriaId       String
+  categoria         Categoria            @relation(fields: [categoriaId], references: [id])
+  
+  equipoLocalId     String
+  equipoLocal       Equipo               @relation("EquipoLocal", fields: [equipoLocalId], references: [id])
+  
+  equipoVisitanteId String
+  equipoVisitante   Equipo               @relation("EquipoVisitante", fields: [equipoVisitanteId], references: [id])
+  
+  asignaciones      AsignacionArbitral[]
+  eventos           EventoPartido[]
+  
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model AsignacionArbitral {
+  partidoId     String
+  partido       Partido  @relation(fields: [partidoId], references: [id])
+  
+  arbitroId     String
+  arbitro       Usuario  @relation(fields: [arbitroId], references: [id])
+  
+  rolEnCampo    String   // Referee, Umpire, Line Judge
+  
+  @@id([partidoId, arbitroId])
+}
+
+model EventoPartido {
+  id            String   @id @default(uuid())
+  timestamp     DateTime @default(now())
+  tipoEvento    String   // INICIO_MITAD, FIN_MITAD, TD, PAT1, PAT2, SAFETY, TIMEOUT, FALTA_PERSONAL, EXPULSION, UNDO_LAST_ACTION, INTERCEPCION
+  
+  partidoId     String
+  partido       Partido  @relation(fields: [partidoId], references: [id])
+  
+  equipoId      String?
+  equipo        Equipo?  @relation(fields: [equipoId], references: [id])
+  
+  jugadorId     String?
+  jugador       Jugador? @relation(fields: [jugadorId], references: [id])
+  
+  arbitroId     String
+  arbitro       Usuario  @relation("ArbitroRegistrador", fields: [arbitroId], references: [id])
+}
