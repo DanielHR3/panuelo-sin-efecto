@@ -4,6 +4,7 @@ import { PartidosService } from './partidos.service';
 
 @Module({
   controllers: [PartidosController],
-  providers: [PartidosService]
+  providers: [PartidosService],
+  exports: [PartidosService],
 })
 export class PartidosModule {}
