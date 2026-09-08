@@ -25,14 +25,15 @@ describe('LigasController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('delega create() en el servicio con el DTO recibido', () => {
-    const dto = { nombre: 'Liga X', propietarioId: 'uuid-propietario' };
-    controller.create(dto);
-    expect(mockLigasService.create).toHaveBeenCalledWith(dto);
+  it('delega create() en el servicio con el DTO y el usuario autenticado', () => {
+    const dto = { nombre: 'Liga X' };
+    const user = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' as const };
+    void controller.create(dto, user);
+    expect(mockLigasService.create).toHaveBeenCalledWith(dto, user);
   });
 
   it('delega findOne() en el servicio con el id de la ruta', () => {
-    controller.findOne('liga-123');
+    void controller.findOne('liga-123');
     expect(mockLigasService.findOne).toHaveBeenCalledWith('liga-123');
   });
 });
