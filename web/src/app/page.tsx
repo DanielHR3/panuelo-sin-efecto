@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 // Mocks de datos
 const EQUIPOS = {
@@ -34,24 +34,42 @@ type ModalFlow = {
   team?: "local" | "visitor";
   points?: number;
   actionName: string;
-  step: "select_type" | "select_qb" | "select_receiver" | "select_runner" | "select_defender" | "select_player" | "select_flag_type" | "select_flag_team" | "select_flag_player";
+  step: "select_type" | "select_qb" | "select_receiver" | "select_runner" | "select_defender" | "select_player" | "select_flag_type" | "select_flag_team" | "select_flag_player" | "select_defplay_type" | "select_defplay_team" | "select_defplay_player";
   playType?: string;
   qb?: Player;
 };
 
+// Registro Inmutable de eventos (Caja Negra) — el marcador se deriva de aquí,
+// nunca se muta directamente. Persistido en localStorage como resiliencia
+// mientras no existe integración con el backend (Offline-First).
+type GameEvent = {
+  id: number;
+  team?: "local" | "visitor";
+  points: number;
+  description: string;
+  timestamp: number;
+};
+
+const STORAGE_KEY = "panuelo-sin-efecto:eventos-partido";
+
 export default function Home() {
-  const [localScore, setLocalScore] = useState(0);
-  const [visitorScore, setVisitorScore] = useState(0);
+  const [events, setEvents] = useState<GameEvent[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [isDark, setIsDark] = useState(true);
 
   // Estado del Flujo del Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [flow, setFlow] = useState<ModalFlow | null>(null);
-  const [lastEvent, setLastEvent] = useState<string | null>(null);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
+  // Cronómetro de mitad + aviso de los 2 minutos (HU-2.4, pedido espontáneamente
+  // por ambos árbitros en la validación). Sin backend todavía, la duración se
+  // configura localmente en vez de por liga.
+  const [halfMinutes, setHalfMinutes] = useState(20);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [warned, setWarned] = useState(false);
+  const totalSeconds = halfMinutes * 60;
+  const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
 
   const vibrate = (pattern: number | number[] = 50) => {
     if (typeof window !== "undefined" && window.navigator?.vibrate) {
@@ -59,17 +77,117 @@ export default function Home() {
     }
   };
 
+  // Beep generado con Web Audio (sin archivos externos) para que la alarma
+  // del cronómetro funcione también sin conexión.
+  const playBeep = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const AudioCtx =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch {
+      // Web Audio no disponible en este dispositivo; el aviso visual/háptico sigue funcionando.
+    }
+  };
+
+  // Restaurar bitácora guardada (sobrevive a un refresh o cierre accidental del navegador)
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      // Hidratación desde localStorage en el montaje: patrón intencional para
+      // Offline-First. Se reemplaza por un hook dedicado en el refactor (PR 4).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (saved) setEvents(JSON.parse(saved));
+    } catch {
+      // localStorage no disponible o datos corruptos: se arranca con bitácora en blanco
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+
+  // Persistir cada evento nuevo
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  }, [events, hydrated]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
+
+  // Avanza el cronómetro un segundo a la vez mientras esté corriendo
+  useEffect(() => {
+    if (!timerRunning) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds((prev) => Math.min(prev + 1, totalSeconds));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timerRunning, totalSeconds]);
+
+  // Aviso único (visual + háptico + sonoro) al llegar exactamente a los 2 minutos restantes
+  useEffect(() => {
+    if (remainingSeconds === 120 && !warned) {
+      // Disparo único del aviso de los 2 minutos (efecto derivado del cronómetro).
+      // El refactor (PR 4) lo mueve a un useRef para no re-renderizar.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWarned(true);
+      vibrate([200, 100, 200, 100, 200]);
+      playBeep();
+    }
+    if (remainingSeconds === 0 && timerRunning) {
+      setTimerRunning(false);
+      vibrate([300, 100, 300]);
+    }
+  }, [remainingSeconds, warned, timerRunning]);
+
+  const localScore = useMemo(
+    () => events.filter((e) => e.team === "local").reduce((sum, e) => sum + e.points, 0),
+    [events]
+  );
+  const visitorScore = useMemo(
+    () => events.filter((e) => e.team === "visitor").reduce((sum, e) => sum + e.points, 0),
+    [events]
+  );
+  const lastEvent = events.length > 0 ? events[events.length - 1] : null;
+
+  const toggleTimer = () => {
+    vibrate();
+    setTimerRunning((prev) => !prev);
+  };
+
+  const resetTimer = () => {
+    vibrate();
+    setTimerRunning(false);
+    setElapsedSeconds(0);
+    setWarned(false);
+  };
+
+  const formatTime = (totalSecs: number) => {
+    const m = Math.floor(totalSecs / 60).toString().padStart(2, "0");
+    const s = (totalSecs % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  const pushEvent = (team: "local" | "visitor" | undefined, points: number, description: string) => {
+    setEvents((prev) => [...prev, { id: Date.now(), team, points, description, timestamp: Date.now() }]);
+  };
+
   const handleScoreIntent = (team: "local" | "visitor", points: number, actionName: string) => {
     vibrate(50);
-    if (points > 0) {
-      const initialStep = points === 6 ? "select_type" : "select_player";
-      setFlow({ team, points, actionName, step: initialStep });
-      setModalOpen(true);
-    } else {
-      if (team === "local") setLocalScore((prev) => Math.max(0, prev + points));
-      else setVisitorScore((prev) => Math.max(0, prev + points));
-      setLastEvent("Deshizo la última acción");
-    }
+    const initialStep = points === 6 ? "select_type" : "select_player";
+    setFlow({ team, points, actionName, step: initialStep });
+    setModalOpen(true);
   };
 
   const handleFlagIntent = () => {
@@ -78,43 +196,64 @@ export default function Home() {
     setModalOpen(true);
   };
 
+  const handleSackIntent = () => {
+    vibrate(50);
+    setFlow({ actionName: "Jugada Defensiva", step: "select_defplay_type" });
+    setModalOpen(true);
+  };
+
+  const handleUndo = () => {
+    vibrate([50, 50, 50]);
+    setEvents((prev) => prev.slice(0, -1));
+  };
+
   const finalizeAction = (description: string) => {
     vibrate([50, 50, 50]);
     if (!flow) return;
 
-    if (flow.points && flow.team) {
-      if (flow.team === "local") setLocalScore((prev) => prev + flow.points!);
-      else setVisitorScore((prev) => prev + flow.points!);
-    }
-
-    setLastEvent(`${flow.actionName}: ${description}`);
+    pushEvent(flow.team, flow.points ?? 0, `${flow.actionName}: ${description}`);
     setModalOpen(false);
     setFlow(null);
   };
 
-  const handleSelect = (data: any) => {
+  // El payload es heterogéneo según el paso del flujo: un Jugador (selector de
+  // roster), un string (tipo de jugada) o un equipo. Se tipa con una unión
+  // discriminada en el refactor del modal (PR 4).
+  const handleSelect = (data: Player | string) => {
     if (!flow) return;
+    const player = data as Player;
+    const text = data as string;
+    const choice = data as "local" | "visitor";
 
     // Flujo de Anotaciones
     if (flow.step === "select_qb") {
-      setFlow({ ...flow, step: "select_receiver", qb: data });
+      setFlow({ ...flow, step: "select_receiver", qb: player });
     } else if (flow.step === "select_receiver") {
-      finalizeAction(`Pase de #${flow.qb?.jersey} a #${data.jersey}`);
+      finalizeAction(`Pase de #${flow.qb?.jersey} a #${player.jersey}`);
     } else if (flow.step === "select_runner") {
-      finalizeAction(`Carrera de #${data.jersey}`);
+      finalizeAction(`Carrera de #${player.jersey}`);
     } else if (flow.step === "select_defender") {
-      finalizeAction(`Pick Six de #${data.jersey}`);
+      finalizeAction(`Pick Six de #${player.jersey}`);
     } else if (flow.step === "select_player") {
-      finalizeAction(`#${data.jersey} ${data.nombre}`);
-    } 
-    
+      finalizeAction(`#${player.jersey} ${player.nombre}`);
+    }
+
     // Flujo de Flags
     else if (flow.step === "select_flag_type") {
-      setFlow({ ...flow, step: "select_flag_team", playType: data });
+      setFlow({ ...flow, step: "select_flag_team", playType: text });
     } else if (flow.step === "select_flag_team") {
-      setFlow({ ...flow, step: "select_flag_player", team: data });
+      setFlow({ ...flow, step: "select_flag_player", team: choice });
     } else if (flow.step === "select_flag_player") {
-      finalizeAction(`${flow.playType} - ${flow.team === 'local' ? EQUIPOS.local.nombre : EQUIPOS.visitor.nombre} #${data.jersey}`);
+      finalizeAction(`${flow.playType} - ${flow.team === 'local' ? EQUIPOS.local.nombre : EQUIPOS.visitor.nombre} #${player.jersey}`);
+    }
+
+    // Flujo de Jugadas Defensivas (Sack / Intercepción)
+    else if (flow.step === "select_defplay_type") {
+      setFlow({ ...flow, step: "select_defplay_team", playType: text });
+    } else if (flow.step === "select_defplay_team") {
+      setFlow({ ...flow, step: "select_defplay_player", team: choice });
+    } else if (flow.step === "select_defplay_player") {
+      finalizeAction(`${flow.playType} de #${player.jersey} (${flow.team === 'local' ? EQUIPOS.local.nombre : EQUIPOS.visitor.nombre})`);
     }
   };
 
@@ -132,9 +271,43 @@ export default function Home() {
         </button>
       </header>
 
+      {/* CRONÓMETRO DE MITAD (HU-2.4) */}
+      <div className="glass-panel rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <span className="text-xs font-bold uppercase tracking-widest opacity-60">Cronómetro de Mitad</span>
+          <span className={`text-3xl font-black tabular-nums ${remainingSeconds <= 120 ? "text-red-500" : ""}`}>
+            {formatTime(remainingSeconds)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={1}
+            max={60}
+            value={halfMinutes}
+            disabled={timerRunning}
+            onChange={(e) => setHalfMinutes(Math.max(1, Number(e.target.value) || 1))}
+            aria-label="Duración de la mitad en minutos"
+            className="w-14 text-center p-2 rounded-xl bg-foreground/5 font-bold disabled:opacity-40"
+          />
+          <button onClick={toggleTimer} aria-label={timerRunning ? "Pausar cronómetro" : "Iniciar cronómetro"} className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop text-xl">
+            {timerRunning ? "⏸️" : "▶️"}
+          </button>
+          <button onClick={resetTimer} aria-label="Reiniciar cronómetro" className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop text-xl">
+            🔄
+          </button>
+        </div>
+      </div>
+
+      {remainingSeconds <= 120 && remainingSeconds > 0 && (
+        <div className="text-center text-sm font-black text-red-500 animate-pulse bg-red-500/10 rounded-xl py-2">
+          ⏰ ¡PAUSA DE LOS 2 MINUTOS!
+        </div>
+      )}
+
       {lastEvent && (
         <div className="text-center text-sm font-semibold text-foreground/70 animate-pulse bg-foreground/5 rounded-xl py-2">
-          📝 {lastEvent}
+          📝 {lastEvent.description}
         </div>
       )}
 
@@ -177,13 +350,13 @@ export default function Home() {
 
       {/* ACCIONES INFERIORES */}
       <div className="grid grid-cols-3 gap-3 mt-2 pb-6">
-        <button onClick={() => { vibrate(); setLastEvent("Sack / Intercepción"); }} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center">
+        <button onClick={handleSackIntent} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center">
           🛡️ Sack/<br/>Pick
         </button>
         <button onClick={handleFlagIntent} className="glass-panel rounded-2xl py-4 flex flex-col items-center justify-center font-black animate-pop border-b-4 border-b-yellow-400 bg-yellow-500/10 shadow-lg text-lg text-yellow-600 dark:text-yellow-400">
           🟨 FLAG
         </button>
-        <button onClick={() => handleScoreIntent("local", -1, "Undo")} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm">
+        <button onClick={handleUndo} disabled={events.length === 0} className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm disabled:opacity-30">
           ↩️ Undo
         </button>
       </div>
@@ -206,6 +379,9 @@ export default function Home() {
                   {flow.step === "select_flag_type" && "¿Qué tipo de castigo?"}
                   {flow.step === "select_flag_team" && "¿Qué equipo cometió la falta?"}
                   {flow.step === "select_flag_player" && "¿Qué jugador fue?"}
+                  {flow.step === "select_defplay_type" && "¿Sack o Intercepción?"}
+                  {flow.step === "select_defplay_team" && "¿Qué equipo hizo la jugada?"}
+                  {flow.step === "select_defplay_player" && "¿Qué jugador la hizo?"}
                 </p>
               </div>
               <button onClick={() => setModalOpen(false)} className="p-3 bg-foreground/5 rounded-full font-bold">X</button>
@@ -238,8 +414,20 @@ export default function Home() {
               </div>
             )}
 
-            {/* PANTALLA EQUIPO FLAG */}
-            {flow.step === "select_flag_team" && (
+            {/* PANTALLA TIPO DE JUGADA DEFENSIVA */}
+            {flow.step === "select_defplay_type" && (
+              <div className="grid grid-cols-1 gap-3">
+                <button onClick={() => handleSelect("Sack")} className="p-5 rounded-2xl border-2 border-red-500/30 font-black text-xl hover:bg-red-500/10 animate-pop text-red-600 dark:text-red-400">
+                  🛡️ SACK
+                </button>
+                <button onClick={() => handleSelect("Intercepción")} className="p-5 rounded-2xl border-2 border-red-500/30 font-black text-xl hover:bg-red-500/10 animate-pop text-red-600 dark:text-red-400">
+                  🎯 INTERCEPCIÓN
+                </button>
+              </div>
+            )}
+
+            {/* PANTALLA EQUIPO FLAG / JUGADA DEFENSIVA */}
+            {(flow.step === "select_flag_team" || flow.step === "select_defplay_team") && (
               <div className="grid grid-cols-2 gap-4">
                 <button onClick={() => handleSelect("local")} className="p-6 rounded-2xl border-4 border-team-a/30 font-black text-xl animate-pop text-team-a flex flex-col items-center gap-2">
                   <span className="text-4xl">{EQUIPOS.local.logo}</span>
@@ -253,7 +441,7 @@ export default function Home() {
             )}
 
             {/* PANTALLA SELECTOR DE JUGADORES */}
-            {["select_qb", "select_receiver", "select_runner", "select_defender", "select_player", "select_flag_player"].includes(flow.step) && (
+            {["select_qb", "select_receiver", "select_runner", "select_defender", "select_player", "select_flag_player", "select_defplay_player"].includes(flow.step) && (
               <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[45vh] pr-2">
                 {EQUIPOS[flow.team!].roster.map((jugador) => (
                   <button 

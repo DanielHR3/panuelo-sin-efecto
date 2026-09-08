@@ -1,0 +1,18 @@
+# Dependencias (cada subproyecto tiene su propio node_modules)
+node_modules/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Variables de entorno (se versionan solo los .env.example de cada subcarpeta)
+.env
+.env.local
+.env.*.local

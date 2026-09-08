@@ -25,7 +25,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col items-center justify-center py-16 text-slate-400">
           <span className="text-5xl mb-4 opacity-50">📭</span>
           <p className="text-lg font-medium text-slate-600 dark:text-slate-300">Tu base de datos está limpia.</p>
-          <p className="text-sm mt-1">Comienza haciendo clic en "+ Nueva Liga" para dar de alta un torneo.</p>
+          <p className="text-sm mt-1">Comienza haciendo clic en &laquo;+ Nueva Liga&raquo; para dar de alta un torneo.</p>
         </div>
       </div>
     </div>

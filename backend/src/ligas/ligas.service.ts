@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLigaDto } from './dto/create-liga.dto';
 
@@ -7,9 +8,18 @@ export class LigasService {
   constructor(private prisma: PrismaService) {}
 
   async create(createLigaDto: CreateLigaDto) {
-    return this.prisma.liga.create({
-      data: createLigaDto,
-    });
+    try {
+      return await this.prisma.liga.create({
+        data: createLigaDto,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new BadRequestException(
+          `El propietarioId "${createLigaDto.propietarioId}" no corresponde a un usuario existente`,
+        );
+      }
+      throw error;
+    }
   }
 
   async findAll() {
