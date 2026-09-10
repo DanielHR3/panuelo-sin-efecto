@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
@@ -10,6 +11,13 @@ import { CreatePartidoDto } from './dto/create-partido.dto';
 import { UpdatePartidoDto } from './dto/update-partido.dto';
 import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 import { ORDEN_ESTADO, type EstadoPartido } from './partido.constants';
+
+/** Campos públicos del árbitro asignado (nunca el passwordHash). */
+const arbitroPublico = {
+  id: true,
+  nombre: true,
+  email: true,
+} satisfies Prisma.UsuarioSelect;
 
 @Injectable()
 export class PartidosService {
@@ -56,7 +64,11 @@ export class PartidosService {
     return this.prisma.partido.findMany({
       where: { categoriaId },
       orderBy: { fechaHora: 'asc' },
-      include: { equipoLocal: true, equipoVisitante: true },
+      include: {
+        equipoLocal: true,
+        equipoVisitante: true,
+        asignaciones: { include: { arbitro: { select: arbitroPublico } } },
+      },
     });
   }
 
@@ -66,7 +78,7 @@ export class PartidosService {
       include: {
         equipoLocal: true,
         equipoVisitante: true,
-        asignaciones: true,
+        asignaciones: { include: { arbitro: { select: arbitroPublico } } },
       },
     });
     if (!partido) throw new NotFoundException(`Partido ${id} no encontrado`);
@@ -108,9 +120,7 @@ export class PartidosService {
     await this.findOne(partidoId); // 404 si no existe
     return this.prisma.asignacionArbitral.findMany({
       where: { partidoId },
-      include: {
-        arbitro: { select: { id: true, nombre: true, email: true } },
-      },
+      include: { arbitro: { select: arbitroPublico } },
     });
   }
 
