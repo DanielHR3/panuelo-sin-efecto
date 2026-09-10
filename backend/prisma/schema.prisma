@@ -80,7 +80,8 @@ model Jugador {
   equipo        Equipo          @relation(fields: [equipoId], references: [id])
   
   eventos       EventoPartido[]
-  
+  partidosMvp   Partido[]       @relation("PartidoMvp")
+
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -107,7 +108,14 @@ model Partido {
   
   asignaciones      AsignacionArbitral[]
   eventos           EventoPartido[]
-  
+
+  // MVP del partido (HU-2.5): se elige una vez FINALIZADO, entre el roster
+  // de cualquiera de los dos equipos. Nullable porque no todo partido lo
+  // tiene todavía (obligatorio en el flujo del árbitro, pero editable
+  // después, así que nunca es un requisito a nivel de fila).
+  mvpJugadorId      String?
+  mvpJugador        Jugador?             @relation("PartidoMvp", fields: [mvpJugadorId], references: [id])
+
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }

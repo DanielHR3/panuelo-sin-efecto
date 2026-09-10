@@ -12,6 +12,7 @@ import { PartidosService } from './partidos.service';
 import { CreatePartidoDto } from './dto/create-partido.dto';
 import { UpdatePartidoDto } from './dto/update-partido.dto';
 import { CreateAsignacionDto } from './dto/create-asignacion.dto';
+import { SetMvpDto } from './dto/set-mvp.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
@@ -81,6 +82,21 @@ export class PartidosController {
   @ApiOperation({ summary: 'Elimina un partido' })
   remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.partidosService.remove(id, user);
+  }
+
+  @Patch('partidos/:id/mvp')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Elige (o corrige) el MVP del partido, entre el roster de cualquiera de los dos equipos. ' +
+      'Solo el árbitro asignado, el LIGA_ADMIN dueño o un SUPERADMIN, y solo con el partido FINALIZADO.',
+  })
+  setMvp(
+    @Param('id') id: string,
+    @Body() dto: SetMvpDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.partidosService.setMvp(id, dto, user);
   }
 
   @Public()

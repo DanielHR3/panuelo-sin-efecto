@@ -14,6 +14,7 @@ const mockService = {
   asignarArbitro: jest.fn(),
   quitarArbitro: jest.fn(),
   findAsignados: jest.fn(),
+  setMvp: jest.fn(),
 };
 
 describe('PartidosController', () => {
@@ -52,5 +53,11 @@ describe('PartidosController', () => {
   it('findAsignados() delega con el sub del usuario autenticado', () => {
     void controller.findAsignados(user);
     expect(mockService.findAsignados).toHaveBeenCalledWith('u1');
+  });
+
+  it('setMvp() delega con partidoId, dto y usuario', () => {
+    const dto = { jugadorId: 'j1' };
+    void controller.setMvp('p1', dto, user);
+    expect(mockService.setMvp).toHaveBeenCalledWith('p1', dto, user);
   });
 });

@@ -77,6 +77,8 @@ export interface Partido {
   equipoVisitante?: Equipo;
   asignaciones?: AsignacionArbitral[];
   categoria?: Categoria & { liga: Liga };
+  mvpJugadorId?: string | null;
+  mvpJugador?: Jugador | null;
 }
 
 /** Detalle de partido con el roster completo (GET /partidos/:id). */

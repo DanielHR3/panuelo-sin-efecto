@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { apiFetch } from "@/lib/api";
 import { calcularMarcador } from "@/lib/marcador";
 import {
   contarPendientes,
+  eliminarMvpPendiente,
   eliminarPendiente,
   encolarEvento,
+  encolarMvp,
+  leerMvpPendiente,
   listarPendientes,
 } from "@/lib/offline-queue";
 import type {
@@ -23,6 +26,7 @@ import { describirEvento } from "./describe";
 import { CLOSED, flowReducer, type TeamSide } from "./flow";
 import { playBeep, useHalfTimer, useHaptics, useScreenLock } from "./hooks";
 import { LockOverlay } from "./LockOverlay";
+import { MvpModal } from "./MvpModal";
 
 const LOCK_TIMEOUT_MS = 60_000;
 
@@ -64,6 +68,20 @@ async function postEvento(
   return data as RegistrarEventoResponse;
 }
 
+/** PATCH /partidos/:id/mvp (HU-2.5). Mismo contrato de error que postEvento. */
+async function postMvp(partidoId: string, jugadorId: string): Promise<void> {
+  const res = await fetch(`/api/proxy/partidos/${partidoId}/mvp`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jugadorId }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { message?: string | string[] };
+  if (!res.ok) {
+    const message = Array.isArray(data.message) ? data.message.join(", ") : data.message;
+    throw new Error(message ?? "No se pudo guardar el MVP");
+  }
+}
+
 const formatTime = (totalSecs: number) => {
   const m = Math.floor(totalSecs / 60).toString().padStart(2, "0");
   const s = (totalSecs % 60).toString().padStart(2, "0");
@@ -88,6 +106,10 @@ export default function ScoreboardClient({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendientesCount, setPendientesCount] = useState(0);
+  const [mvpJugadorId, setMvpJugadorId] = useState<string | null>(partido.mvpJugadorId ?? null);
+  const [mvpModalOpen, setMvpModalOpen] = useState(false);
+  const [mvpPendiente, setMvpPendiente] = useState(false);
+  const mvpVerificadoRef = useRef(false);
 
   const vibrate = useHaptics();
   const { resolvedTheme, setTheme } = useTheme();
@@ -101,6 +123,10 @@ export default function ScoreboardClient({
   });
 
   const finalizado = estado === "FINALIZADO";
+  const jugadorMvp =
+    equipoLocal.jugadores.find((j) => j.id === mvpJugadorId) ??
+    equipoVisitante.jugadores.find((j) => j.id === mvpJugadorId) ??
+    null;
   const equipoIdDe = (team: TeamSide) => (team === "local" ? equipoLocal.id : equipoVisitante.id);
   const lastEvent = eventos.length > 0 ? eventos[eventos.length - 1] : null;
 
@@ -178,6 +204,79 @@ export default function ScoreboardClient({
     return () => window.removeEventListener("online", drenarCola);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar; drenarCola cierra sobre partido.id, que no cambia
   }, []);
+
+  /**
+   * Reintenta el MVP elegido sin conexión (HU-2.5). A diferencia de
+   * drenarCola no hay nada "siguiente" que dependa de esto para avanzar, así
+   * que un error real del servidor no descarta la elección: se deja en la
+   * cola para reintentar y se avisa al árbitro (puede reabrir el modal y
+   * volver a elegir, lo que sobreescribe el pendiente vía `encolarMvp`).
+   */
+  const drenarMvp = async () => {
+    const pendiente = await leerMvpPendiente(partido.id);
+    if (!pendiente) return;
+    try {
+      await postMvp(partido.id, pendiente.jugadorId);
+      await eliminarMvpPendiente(partido.id);
+      setMvpJugadorId(pendiente.jugadorId);
+      setMvpPendiente(false);
+    } catch (e) {
+      if (esErrorDeRed(e)) return; // sigue sin conexión; se reintenta en el próximo online/montaje
+      setError(
+        `No se pudo sincronizar el MVP: ${e instanceof Error ? e.message : "error desconocido"}`,
+      );
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void drenarMvp();
+    window.addEventListener("online", drenarMvp);
+    return () => window.removeEventListener("online", drenarMvp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar; drenarMvp cierra sobre partido.id, que no cambia
+  }, []);
+
+  /**
+   * Abre el modal de MVP automáticamente la primera vez que el partido está
+   * FINALIZADO sin uno todavía — tanto al transicionar en vivo (segundo
+   * FIN_MITAD) como al cargar la página de un partido que ya lo estaba (p.
+   * ej. se finalizó offline y la app se recargó antes de sincronizar). El
+   * ref evita reabrirlo en cada re-render mientras `estado` siga FINALIZADO;
+   * si ya hay un MVP pendiente sin sincronizar en la cola local, se adopta
+   * ese valor en vez de forzar el modal de nuevo.
+   */
+  useEffect(() => {
+    if (estado !== "FINALIZADO" || mvpVerificadoRef.current) return;
+    mvpVerificadoRef.current = true;
+    void (async () => {
+      const pendiente = await leerMvpPendiente(partido.id);
+      if (pendiente) {
+        setMvpJugadorId(pendiente.jugadorId);
+        setMvpPendiente(true);
+        return;
+      }
+      if (!mvpJugadorId) setMvpModalOpen(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta una sola vez al llegar a FINALIZADO (mvpVerificadoRef); mvpJugadorId se lee del cierre en ese instante a propósito
+  }, [estado]);
+
+  const handleSelectMvp = async (jugador: Jugador) => {
+    vibrate([50, 50, 50]);
+    setMvpModalOpen(false);
+    try {
+      await postMvp(partido.id, jugador.id);
+      setMvpJugadorId(jugador.id);
+      setMvpPendiente(false);
+    } catch (e) {
+      if (esErrorDeRed(e)) {
+        await encolarMvp({ partidoId: partido.id, jugadorId: jugador.id, createdAt: Date.now() });
+        setMvpJugadorId(jugador.id);
+        setMvpPendiente(true);
+        return;
+      }
+      setError(`No se pudo guardar el MVP: ${e instanceof Error ? e.message : "error desconocido"}`);
+    }
+  };
 
   const ejecutar = async (payload: EventoPayload) => {
     setPending(true);
@@ -390,6 +489,16 @@ export default function ScoreboardClient({
         </div>
       )}
 
+      {finalizado && (
+        <button
+          onClick={() => { vibrate(); setMvpModalOpen(true); }}
+          className="text-center text-sm font-black text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 rounded-xl py-2 animate-pop"
+        >
+          🏆 {jugadorMvp ? `MVP: #${jugadorMvp.numeroJersey} ${jugadorMvp.nombre}` : "Elegir MVP"}
+          {mvpPendiente ? " · pendiente de sincronizar" : ""}
+        </button>
+      )}
+
       {error && (
         <div role="alert" className="text-center text-sm font-semibold text-red-500 bg-red-500/10 rounded-xl py-2">
           {error}
@@ -459,6 +568,17 @@ export default function ScoreboardClient({
         onSelectPlayer={handleSelectPlayer}
         onSkipPlayer={handleSkipPlayer}
       />
+
+      {mvpModalOpen && (
+        <MvpModal
+          equipoLocal={equipoLocal}
+          equipoVisitante={equipoVisitante}
+          mvpJugadorId={mvpJugadorId}
+          obligatorio={jugadorMvp === null}
+          onSelect={(jugador) => void handleSelectMvp(jugador)}
+          onClose={() => setMvpModalOpen(false)}
+        />
+      )}
 
       {screenLock.locked && (
         <LockOverlay
