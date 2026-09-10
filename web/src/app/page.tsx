@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useTheme } from "next-themes";
 
 // Mocks de datos
 const EQUIPOS = {
@@ -55,7 +56,7 @@ const STORAGE_KEY = "panuelo-sin-efecto:eventos-partido";
 export default function Home() {
   const [events, setEvents] = useState<GameEvent[]>([]);
   const [hydrated, setHydrated] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const { resolvedTheme, setTheme } = useTheme();
 
   // Estado del Flujo del Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -121,10 +122,6 @@ export default function Home() {
     if (!hydrated) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   }, [events, hydrated]);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
 
   // Avanza el cronómetro un segundo a la vez mientras esté corriendo
   useEffect(() => {
@@ -266,8 +263,13 @@ export default function Home() {
             EN JUEGO
           </h1>
         </div>
-        <button onClick={() => { vibrate(); setIsDark(!isDark); }} className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop">
-          {isDark ? "☀️ Claro" : "🌙 Oscuro"}
+        <button
+          onClick={() => { vibrate(); setTheme(resolvedTheme === "dark" ? "light" : "dark"); }}
+          className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
+          aria-label="Cambiar tema"
+        >
+          {/* hydrated evita un mismatch de hidratación: resolvedTheme es undefined hasta montar */}
+          {hydrated ? (resolvedTheme === "dark" ? "☀️ Claro" : "🌙 Oscuro") : "🌗"}
         </button>
       </header>
 
