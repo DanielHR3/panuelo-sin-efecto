@@ -3,8 +3,9 @@ import type { NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session";
 
 /**
- * Protege /admin: sin cookie de sesión, redirige a /login. La autorización
- * real (roles, propiedad de recursos) la sigue haciendo el backend en cada
+ * Protege /admin y la PWA del árbitro (/ y /partido/**): sin cookie de
+ * sesión, redirige a /login. La autorización real (roles, propiedad de
+ * recursos, estar asignado al partido) la sigue haciendo el backend en cada
  * request — esto es solo UX, no el límite de seguridad.
  */
 export function proxy(request: NextRequest) {
@@ -18,5 +19,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/", "/admin/:path*", "/partido/:path*"],
 };

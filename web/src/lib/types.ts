@@ -76,4 +76,48 @@ export interface Partido {
   equipoLocal?: Equipo;
   equipoVisitante?: Equipo;
   asignaciones?: AsignacionArbitral[];
+  categoria?: Categoria & { liga: Liga };
+}
+
+/** Detalle de partido con el roster completo (GET /partidos/:id). */
+export interface PartidoConRoster extends Partido {
+  equipoLocal: EquipoConRoster;
+  equipoVisitante: EquipoConRoster;
+}
+
+/**
+ * Tipos de evento que registra el árbitro (debe coincidir con
+ * backend/src/eventos/evento.constants.ts).
+ */
+export const TIPOS_EVENTO = [
+  "INICIO_MITAD",
+  "FIN_MITAD",
+  "TD",
+  "PAT1",
+  "PAT2",
+  "SAFETY",
+  "PICK_SIX",
+  "TIMEOUT",
+  "FALTA_PERSONAL",
+  "EXPULSION",
+  "INTERCEPCION",
+  "SACK",
+  "UNDO_LAST_ACTION",
+] as const;
+export type TipoEvento = (typeof TIPOS_EVENTO)[number];
+
+export interface GameEvent {
+  id: string;
+  timestamp: string;
+  tipoEvento: TipoEvento;
+  clientEventId: string | null;
+  partidoId: string;
+  equipoId: string | null;
+  jugadorId: string | null;
+  arbitroId: string;
+}
+
+export interface Marcador {
+  local: number;
+  visitante: number;
 }
