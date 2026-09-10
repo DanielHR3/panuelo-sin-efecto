@@ -72,17 +72,38 @@ export class PartidosService {
     });
   }
 
+  /**
+   * Detalle completo, con el roster de ambos equipos: es lo que necesita el
+   * marcador del árbitro para el selector de jugadores.
+   */
   async findOne(id: string) {
     const partido = await this.prisma.partido.findUnique({
       where: { id },
       include: {
-        equipoLocal: true,
-        equipoVisitante: true,
+        equipoLocal: {
+          include: { jugadores: { orderBy: { numeroJersey: 'asc' } } },
+        },
+        equipoVisitante: {
+          include: { jugadores: { orderBy: { numeroJersey: 'asc' } } },
+        },
         asignaciones: { include: { arbitro: { select: arbitroPublico } } },
       },
     });
     if (!partido) throw new NotFoundException(`Partido ${id} no encontrado`);
     return partido;
+  }
+
+  /** Partidos donde el usuario tiene una asignación arbitral. Para la PWA del árbitro. */
+  async findAsignados(arbitroId: string) {
+    return this.prisma.partido.findMany({
+      where: { asignaciones: { some: { arbitroId } } },
+      orderBy: { fechaHora: 'asc' },
+      include: {
+        equipoLocal: true,
+        equipoVisitante: true,
+        categoria: { include: { liga: true } },
+      },
+    });
   }
 
   async update(id: string, dto: UpdatePartidoDto, user: AuthUser) {
