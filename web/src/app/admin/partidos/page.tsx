@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import { authedFetch } from "@/lib/server-api";
 import type { Liga, Equipo, Partido, Usuario, EstadoPartido } from "@/lib/types";
+import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
 import {
@@ -15,18 +16,6 @@ const ESTADO_SIGUIENTE: Record<EstadoPartido, EstadoPartido | null> = {
   PROGRAMADO: "EN_CURSO",
   EN_CURSO: "FINALIZADO",
   FINALIZADO: null,
-};
-
-const ESTADO_LABEL: Record<EstadoPartido, string> = {
-  PROGRAMADO: "Programado",
-  EN_CURSO: "En curso",
-  FINALIZADO: "Finalizado",
-};
-
-const ESTADO_BADGE: Record<EstadoPartido, string> = {
-  PROGRAMADO: "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300",
-  EN_CURSO: "bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400",
-  FINALIZADO: "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400",
 };
 
 export default async function PartidosPage({
