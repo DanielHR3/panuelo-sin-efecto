@@ -9,6 +9,7 @@ const mockPrisma = {
   usuario: {
     create: jest.fn(),
     findUnique: jest.fn(),
+    findMany: jest.fn(),
   },
 };
 
@@ -74,6 +75,24 @@ describe('UsuariosService', () => {
       mockPrisma.usuario.findUnique.mockResolvedValueOnce(null);
       await expect(service.findById('nope')).rejects.toBeInstanceOf(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('findAll', () => {
+    it('sin rol, consulta sin filtro de where', async () => {
+      mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
+      await service.findAll();
+      expect(mockPrisma.usuario.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: undefined }),
+      );
+    });
+
+    it('con rol, filtra por ese rol', async () => {
+      mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
+      await service.findAll('ARBITRO');
+      expect(mockPrisma.usuario.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { rol: 'ARBITRO' } }),
       );
     });
   });

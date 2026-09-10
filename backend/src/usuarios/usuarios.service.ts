@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../common/hashing';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
+import type { Rol } from '../common/roles';
 
 /** Campos seguros para devolver por API (nunca el passwordHash). */
 const publicSelect = {
@@ -49,6 +50,19 @@ export class UsuariosService {
   /** Incluye el passwordHash: solo para el flujo de login. */
   findByEmailWithHash(email: string) {
     return this.prisma.usuario.findUnique({ where: { email } });
+  }
+
+  /**
+   * Lista usuarios, opcionalmente filtrados por rol. Pensado para que un
+   * LIGA_ADMIN o SUPERADMIN encuentre árbitros a la hora de asignarlos a un
+   * partido; nunca expone el passwordHash.
+   */
+  async findAll(rol?: Rol) {
+    return this.prisma.usuario.findMany({
+      where: rol ? { rol } : undefined,
+      select: publicSelect,
+      orderBy: { nombre: 'asc' },
+    });
   }
 
   async findById(id: string) {
