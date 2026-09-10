@@ -21,7 +21,10 @@ import type {
 import { ActionModal } from "./ActionModal";
 import { describirEvento } from "./describe";
 import { CLOSED, flowReducer, type TeamSide } from "./flow";
-import { playBeep, useHalfTimer, useHaptics } from "./hooks";
+import { playBeep, useHalfTimer, useHaptics, useScreenLock } from "./hooks";
+import { LockOverlay } from "./LockOverlay";
+
+const LOCK_TIMEOUT_MS = 60_000;
 
 interface RegistrarEventoResponse {
   evento: GameEvent;
@@ -88,6 +91,7 @@ export default function ScoreboardClient({
 
   const vibrate = useHaptics();
   const { resolvedTheme, setTheme } = useTheme();
+  const screenLock = useScreenLock(LOCK_TIMEOUT_MS, { disabled: flow.step !== "closed" });
   const halfTimer = useHalfTimer(20, {
     thresholdSeconds: 120,
     onThreshold: () => {
@@ -310,13 +314,22 @@ export default function ScoreboardClient({
             {finalizado ? "FINALIZADO" : estado === "EN_CURSO" ? "EN JUEGO" : "PROGRAMADO"}
           </h1>
         </div>
-        <button
-          onClick={() => { vibrate(); setTheme(resolvedTheme === "dark" ? "light" : "dark"); }}
-          className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
-          aria-label="Cambiar tema"
-        >
-          {resolvedTheme === "dark" ? "☀️" : "🌙"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { vibrate(); screenLock.lock(); }}
+            className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
+            aria-label="Bloquear pantalla"
+          >
+            🔒
+          </button>
+          <button
+            onClick={() => { vibrate(); setTheme(resolvedTheme === "dark" ? "light" : "dark"); }}
+            className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
+            aria-label="Cambiar tema"
+          >
+            {resolvedTheme === "dark" ? "☀️" : "🌙"}
+          </button>
+        </div>
       </header>
 
       {!finalizado && (
@@ -446,6 +459,18 @@ export default function ScoreboardClient({
         onSelectPlayer={handleSelectPlayer}
         onSkipPlayer={handleSkipPlayer}
       />
+
+      {screenLock.locked && (
+        <LockOverlay
+          equipoLocal={equipoLocal}
+          equipoVisitante={equipoVisitante}
+          scoreLocal={marcador.local}
+          scoreVisitante={marcador.visitante}
+          tiempoRestante={formatTime(halfTimer.remainingSeconds)}
+          onUnlock={screenLock.unlock}
+          vibrate={vibrate}
+        />
+      )}
     </main>
   );
 }
