@@ -1,6 +1,15 @@
 import { apiFetch } from "@/lib/api";
 import { authedFetch } from "@/lib/server-api";
-import type { Liga, Equipo, Partido, Usuario, EstadoPartido, Discrepancia } from "@/lib/types";
+import type {
+  Liga,
+  Equipo,
+  Partido,
+  Usuario,
+  EstadoPartido,
+  Discrepancia,
+  EquipoConRoster,
+  Jugador,
+} from "@/lib/types";
 import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
@@ -39,13 +48,41 @@ export default async function PartidosPage({
     : [[], [], []];
 
   const finalizados = partidos.filter((p) => p.estado === "FINALIZADO");
+  // Finding 3 (HU-2.6 review): GET /ligas es pública y sin filtrar, así que
+  // un LIGA_ADMIN puede llegar aquí con una categoría de una liga que no le
+  // pertenece. assertCanManagePartido responde 403 en ese caso, y si eso
+  // pasara dentro de un Promise.all sin manejar, tiraría toda la página al
+  // boundary de error genérico (ni el selector de categoría quedaría
+  // accesible). Cada fetch falla en aislado: un partido cuya consulta de
+  // discrepancias falle se trata como "sin discrepancias que mostrar" en vez
+  // de romper la página completa.
   const discrepanciasPorPartido = new Map<string, Discrepancia[]>(
     await Promise.all(
-      finalizados.map(
-        async (p) =>
-          [p.id, await authedFetch<Discrepancia[]>(`/partidos/${p.id}/discrepancias`)] as const,
-      ),
+      finalizados.map(async (p) => {
+        try {
+          return [
+            p.id,
+            await authedFetch<Discrepancia[]>(`/partidos/${p.id}/discrepancias`),
+          ] as const;
+        } catch {
+          return [p.id, [] as Discrepancia[]] as const;
+        }
+      }),
     ),
+  );
+
+  // Finding 4: el roster completo de cada equipo (para mostrar el jugador
+  // de cada evento en las filas de discrepancia) no viene en
+  // /categorias/:id/equipos — se resuelve aparte, mismo patrón N+1
+  // aceptado ya en este archivo para las discrepancias.
+  const equiposConRoster: EquipoConRoster[] =
+    equipos.length > 0
+      ? await Promise.all(
+          equipos.map((e) => apiFetch<EquipoConRoster>(`/equipos/${e.id}`)),
+        )
+      : [];
+  const jugadoresPorId = new Map<string, Jugador>(
+    equiposConRoster.flatMap((e) => e.jugadores.map((j) => [j.id, j] as const)),
   );
 
   return (
@@ -168,6 +205,7 @@ export default async function PartidosPage({
                   equipos={equipos}
                   arbitros={arbitros}
                   discrepancias={discrepanciasPorPartido.get(partido.id) ?? []}
+                  jugadoresPorId={jugadoresPorId}
                 />
               ))}
             </div>
@@ -183,11 +221,13 @@ function PartidoCard({
   equipos,
   arbitros,
   discrepancias,
+  jugadoresPorId,
 }: {
   partido: Partido;
   equipos: Equipo[];
   arbitros: Usuario[];
   discrepancias: Discrepancia[];
+  jugadoresPorId: Map<string, Jugador>;
 }) {
   const local = equipos.find((e) => e.id === partido.equipoLocalId)?.nombre ?? "?";
   const visitante = equipos.find((e) => e.id === partido.equipoVisitanteId)?.nombre ?? "?";
@@ -290,7 +330,14 @@ function PartidoCard({
           </p>
           <div className="flex flex-col gap-3">
             {pendientes.map((d) => (
-              <DiscrepanciaRow key={d.id} partidoId={partido.id} discrepancia={d} arbitros={arbitros} />
+              <DiscrepanciaRow
+                key={d.id}
+                partidoId={partido.id}
+                discrepancia={d}
+                arbitros={arbitros}
+                equipos={equipos}
+                jugadoresPorId={jugadoresPorId}
+              />
             ))}
           </div>
         </div>
@@ -303,14 +350,30 @@ function DiscrepanciaRow({
   partidoId,
   discrepancia,
   arbitros,
+  equipos,
+  jugadoresPorId,
 }: {
   partidoId: string;
   discrepancia: Discrepancia;
   arbitros: Usuario[];
+  equipos: Equipo[];
+  jugadoresPorId: Map<string, Jugador>;
 }) {
   const nombreArbitro = (id: string) => arbitros.find((a) => a.id === id)?.nombre ?? id;
+  const nombreEquipo = (id: string | null) =>
+    id ? (equipos.find((e) => e.id === id)?.nombre ?? id) : "sin equipo";
+  // Finding 4 (HU-2.6 review): un par detectado siempre comparte tipoEvento
+  // y equipoId por construcción (ver detectarDiscrepancias) — jugadorId es
+  // lo único que puede distinguir a los dos eventos que el admin tiene que
+  // elegir entre sí, y no se mostraba. Mismo formato "#numero nombre" que
+  // MvpModal/ActionModal.
+  const describirJugador = (jugadorId: string | null) => {
+    if (!jugadorId) return "sin jugador";
+    const jugador = jugadoresPorId.get(jugadorId);
+    return jugador ? `#${jugador.numeroJersey} ${jugador.nombre}` : "sin jugador";
+  };
   const describirEvento = (e: (typeof discrepancia)["eventoA"]) =>
-    `${e.tipoEvento} · ${nombreArbitro(e.arbitroId)} · ${new Date(e.timestamp).toLocaleTimeString("es-MX")}`;
+    `${e.tipoEvento} · ${nombreEquipo(e.equipoId)} · ${describirJugador(e.jugadorId)} · ${nombreArbitro(e.arbitroId)} · ${new Date(e.timestamp).toLocaleTimeString("es-MX")}`;
 
   return (
     <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex flex-col gap-3">
