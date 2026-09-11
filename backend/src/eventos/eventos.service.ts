@@ -8,7 +8,11 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { RegistrarEventoDto } from './dto/registrar-evento.dto';
-import { calcularMarcador, type Marcador } from './marcador';
+import {
+  calcularMarcador,
+  filtrarEventosVigentes,
+  type Marcador,
+} from './marcador';
 import { puntosDe } from './evento.constants';
 import { detectarDiscrepancias } from './discrepancias';
 
@@ -121,7 +125,16 @@ export class EventosService {
           nuevoEstado !== partido.estado &&
           partido.asignaciones.length > 1
         ) {
-          const pares = detectarDiscrepancias(todos);
+          // Finding 1: solo se alimenta al detector con eventos que siguen
+          // vigentes (no cancelados por un UNDO_LAST_ACTION posterior),
+          // usando la MISMA pila de cancelación que calcularMarcador (ver
+          // marcador.ts) — así nunca se puede emparejar como "posible
+          // duplicado" un evento que el marcador ya ignora. Sin este filtro,
+          // resolver la discrepancia descartando el evento vigente real
+          // dejaría el marcador corrupto sin forma de arreglarlo desde el
+          // producto (los eventos nunca se borran).
+          const vigentes = filtrarEventosVigentes(todos);
+          const pares = detectarDiscrepancias(vigentes);
           if (pares.length > 0) {
             await tx.discrepanciaEvento.createMany({
               data: pares.map((p) => ({

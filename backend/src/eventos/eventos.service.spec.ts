@@ -346,6 +346,49 @@ describe('EventosService', () => {
     expect(mockTx.discrepanciaEvento.createMany).not.toHaveBeenCalled();
   });
 
+  it('no crea discrepancia para una jugada que un UNDO_LAST_ACTION ya canceló (finding 1)', async () => {
+    // Dos árbitros registran el mismo TD dentro de la ventana de 30s (e1,
+    // e2, tal como en el test de arriba) pero luego ref-2 se da cuenta y
+    // deshace SU propio evento con un UNDO. calcularMarcador ya no cuenta
+    // e2 — detectarDiscrepancias tampoco debería verlo como candidato:
+    // emparejar e1 con un evento ya cancelado y que el admin luego
+    // "Descartar A" (e1, el TD real y vigente) dejaría el marcador corrupto
+    // sin ninguna forma de deshacerlo desde el producto.
+    const partidoDosArbitros = {
+      ...partidoBase('EN_CURSO'),
+      asignaciones: [{ arbitroId: 'ref-1' }, { arbitroId: 'ref-2' }],
+    };
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(partidoDosArbitros);
+    mockPrisma.eventoPartido.count.mockResolvedValueOnce(1); // ya hubo un FIN_MITAD
+    mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+      {
+        id: 'e1',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-1',
+        timestamp: new Date('2026-09-20T18:00:00.000Z'),
+      },
+      {
+        id: 'e2',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-2',
+        timestamp: new Date('2026-09-20T18:00:05.000Z'),
+      },
+      {
+        id: 'e3',
+        tipoEvento: 'UNDO_LAST_ACTION',
+        equipoId: null,
+        arbitroId: 'ref-2',
+        timestamp: new Date('2026-09-20T18:00:10.000Z'),
+      },
+    ]);
+
+    await service.registrar('p1', { tipoEvento: 'FIN_MITAD' }, arbitroAsignado);
+
+    expect(mockTx.discrepanciaEvento.createMany).not.toHaveBeenCalled();
+  });
+
   it('no crea discrepancias cuando el evento no finaliza el partido (no es el segundo FIN_MITAD)', async () => {
     const partidoDosArbitros = {
       ...partidoBase('EN_CURSO'),
