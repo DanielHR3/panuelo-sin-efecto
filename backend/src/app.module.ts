@@ -16,6 +16,7 @@ import { EquiposModule } from './equipos/equipos.module';
 import { JugadoresModule } from './jugadores/jugadores.module';
 import { PartidosModule } from './partidos/partidos.module';
 import { EventosModule } from './eventos/eventos.module';
+import { DiscrepanciasModule } from './discrepancias/discrepancias.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { EventosModule } from './eventos/eventos.module';
     JugadoresModule,
     PartidosModule,
     EventosModule,
+    DiscrepanciasModule,
   ],
   controllers: [AppController],
   providers: [
