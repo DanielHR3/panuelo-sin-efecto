@@ -16,11 +16,12 @@ model Usuario {
   email              String               @unique
   passwordHash       String
   rol                String               // 'SUPERADMIN', 'LIGA_ADMIN', 'ARBITRO'
-  
+
   ligasPropias       Liga[]               @relation("PropietarioLiga")
   asignaciones       AsignacionArbitral[]
   eventosRegistrados EventoPartido[]      @relation("ArbitroRegistrador")
-  
+  discrepanciasResueltas DiscrepanciaEvento[]
+
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 }
@@ -116,6 +117,8 @@ model Partido {
   mvpJugadorId      String?
   mvpJugador        Jugador?             @relation("PartidoMvp", fields: [mvpJugadorId], references: [id])
 
+  discrepancias     DiscrepanciaEvento[]
+
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }
@@ -143,6 +146,11 @@ model EventoPartido {
   // directamente en el servidor.
   clientEventId String?
 
+  // Reconciliación entre árbitros (HU-2.6): flag suave, la fila nunca se
+  // borra (Caja Negra) — solo se excluye del cálculo del marcador cuando un
+  // admin resuelve una discrepancia descartando este evento.
+  descartado    Boolean  @default(false)
+
   partidoId     String
   partido       Partido  @relation(fields: [partidoId], references: [id])
 
@@ -155,6 +163,37 @@ model EventoPartido {
   arbitroId     String
   arbitro       Usuario  @relation("ArbitroRegistrador", fields: [arbitroId], references: [id])
 
+  discrepanciasComoA         DiscrepanciaEvento[] @relation("DiscrepanciaEventoA")
+  discrepanciasComoB         DiscrepanciaEvento[] @relation("DiscrepanciaEventoB")
+  discrepanciasDescartadoEn  DiscrepanciaEvento[] @relation("DiscrepanciaEventoDescartado")
+
   @@unique([partidoId, clientEventId])
   @@index([partidoId, timestamp])
+}
+
+model DiscrepanciaEvento {
+  id                 String    @id @default(uuid())
+
+  partidoId          String
+  partido            Partido       @relation(fields: [partidoId], references: [id])
+
+  eventoAId          String
+  eventoA            EventoPartido @relation("DiscrepanciaEventoA", fields: [eventoAId], references: [id])
+
+  eventoBId          String
+  eventoB            EventoPartido @relation("DiscrepanciaEventoB", fields: [eventoBId], references: [id])
+
+  estado             String    // PENDIENTE, RESUELTA
+
+  // Nulo si se resolvió como "mantener ambos" (falso positivo de la detección).
+  eventoDescartadoId String?
+  eventoDescartado   EventoPartido? @relation("DiscrepanciaEventoDescartado", fields: [eventoDescartadoId], references: [id])
+
+  resueltoPorId      String?
+  resueltoPor        Usuario?  @relation(fields: [resueltoPorId], references: [id])
+  resolvedAt         DateTime?
+
+  createdAt          DateTime  @default(now())
+
+  @@index([partidoId, estado])
 }
