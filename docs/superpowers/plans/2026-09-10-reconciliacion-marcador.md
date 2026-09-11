@@ -956,7 +956,7 @@ export class DiscrepanciasService {
 - [ ] **Step 5: Verificar GREEN**
 
 Run: `npx jest src/discrepancias/discrepancias.service.spec.ts`
-Expected: `Tests: 8 passed, 8 total`.
+Expected: `Tests: 7 passed, 7 total`.
 
 - [ ] **Step 6: Lint y commit**
 
@@ -1111,7 +1111,7 @@ import { DiscrepanciasModule } from './discrepancias/discrepancias.module';
 - [ ] **Step 6: Verificar que la app arranca y la suite completa sigue en verde**
 
 Run: `npx jest && npm run build && npm run lint`
-Expected: `Test Suites: 26 passed, 26 total` (22 previas + discrepancias.spec + discrepancias.service.spec + discrepancias.controller.spec + eventos.service.spec ya contado), build y lint sin errores.
+Expected: `Test Suites: 25 passed, 25 total` (22 previas + discrepancias.spec + discrepancias.service.spec + discrepancias.controller.spec — eventos.service.spec.ts no suma un suite nuevo, ya existía), build y lint sin errores.
 
 - [ ] **Step 7: Commit**
 
