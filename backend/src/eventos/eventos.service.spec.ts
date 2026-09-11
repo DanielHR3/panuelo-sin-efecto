@@ -229,4 +229,32 @@ describe('EventosService', () => {
     expect(res.evento).toEqual({ id: 'ev-existente' });
     expect(mockTx.eventoPartido.create).not.toHaveBeenCalled();
   });
+
+  it('getMarcador() excluye eventos descartados de la consulta', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce({
+      equipoLocalId: LOCAL_ID,
+      equipoVisitanteId: VISITA_ID,
+    });
+    mockPrisma.eventoPartido.findMany.mockResolvedValueOnce([]);
+    await service.getMarcador('p1');
+    const [arg] = mockPrisma.eventoPartido.findMany.mock.calls[0] as [
+      { where: { descartado?: boolean } },
+    ];
+    expect(arg.where.descartado).toBe(false);
+  });
+
+  it('registrar() excluye eventos descartados al recalcular el marcador', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(
+      partidoBase('EN_CURSO'),
+    );
+    await service.registrar(
+      'p1',
+      { tipoEvento: 'TD', equipoId: LOCAL_ID },
+      arbitroAsignado,
+    );
+    const [arg] = mockTx.eventoPartido.findMany.mock.calls[0] as [
+      { where: { descartado?: boolean } },
+    ];
+    expect(arg.where.descartado).toBe(false);
+  });
 });

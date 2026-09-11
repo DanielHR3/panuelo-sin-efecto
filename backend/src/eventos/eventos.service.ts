@@ -90,9 +90,15 @@ export class EventosService {
         });
 
         const todos = await tx.eventoPartido.findMany({
-          where: { partidoId },
+          where: { partidoId, descartado: false },
           orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
-          select: { tipoEvento: true, equipoId: true },
+          select: {
+            id: true,
+            tipoEvento: true,
+            equipoId: true,
+            arbitroId: true,
+            timestamp: true,
+          },
         });
         const marcador = calcularMarcador(
           todos,
@@ -153,7 +159,7 @@ export class EventosService {
       throw new NotFoundException(`Partido ${partidoId} no encontrado`);
 
     const eventos = await this.prisma.eventoPartido.findMany({
-      where: { partidoId },
+      where: { partidoId, descartado: false },
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
       select: { tipoEvento: true, equipoId: true },
     });
