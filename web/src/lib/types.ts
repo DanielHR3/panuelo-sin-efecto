@@ -123,3 +123,26 @@ export interface Marcador {
   local: number;
   visitante: number;
 }
+
+export interface EventoDiscrepancia {
+  id: string;
+  tipoEvento: TipoEvento;
+  equipoId: string | null;
+  jugadorId: string | null;
+  arbitroId: string;
+  timestamp: string;
+  descartado: boolean;
+}
+
+export type AccionResolucion = "DESCARTAR_A" | "DESCARTAR_B" | "MANTENER_AMBOS";
+
+export interface Discrepancia {
+  id: string;
+  partidoId: string;
+  estado: "PENDIENTE" | "RESUELTA";
+  eventoA: EventoDiscrepancia;
+  eventoB: EventoDiscrepancia;
+  eventoDescartadoId: string | null;
+  resueltoPorId: string | null;
+  resolvedAt: string | null;
+}
