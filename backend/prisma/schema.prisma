@@ -195,5 +195,10 @@ model DiscrepanciaEvento {
 
   createdAt          DateTime  @default(now())
 
+  // Backstop de base de datos (HU-2.6, finding 2): además de la lectura
+  // fresca dentro de la transacción en eventos.service.ts, esta restricción
+  // impide que dos filas repitan el mismo par de eventos si algo lograra
+  // colarse igual (p. ej. datos ya duplicados de antes de este fix).
+  @@unique([eventoAId, eventoBId])
   @@index([partidoId, estado])
 }

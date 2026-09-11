@@ -25,10 +25,15 @@ export class EventosService {
     dto: RegistrarEventoDto,
     arbitro: AuthUser,
   ): Promise<{ evento: unknown; marcador: Marcador; duplicado: boolean }> {
+    // Nota (HU-2.6, finding 2): este `partido` solo se usa para autorización
+    // (categoria/liga/asignaciones) y los ids de equipo — nunca para decidir
+    // la transición de estado. `estado` se relee FRESCO desde dentro de la
+    // transacción (ver más abajo), porque dos árbitros pulsando "fin de
+    // partido" casi al mismo tiempo pueden leer este `estado` de aquí afuera
+    // ANTES de que exista ninguna transacción confirmada.
     const partido = await this.prisma.partido.findUnique({
       where: { id: partidoId },
       select: {
-        estado: true,
         equipoLocalId: true,
         equipoVisitanteId: true,
         categoria: { select: { liga: { select: { propietarioId: true } } } },
@@ -74,14 +79,26 @@ export class EventosService {
       );
     }
 
-    const nuevoEstado = await this.resolverTransicionEstado(
-      partidoId,
-      partido,
-      dto,
-    );
-
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // Lectura FRESCA de estado, dentro de la transacción (HU-2.6,
+        // finding 2). SQLite serializa las transacciones de escritura: una
+        // transacción que arranca después de que otra ya confirmó ve el
+        // estado que esa otra dejó, así que dos "fin de partido" casi
+        // simultáneos ya no pueden finalizar/detectar dos veces — la
+        // segunda ve FINALIZADO y es rechazada como cualquier evento
+        // genuinamente tardío.
+        const estadoActual = await tx.partido.findUniqueOrThrow({
+          where: { id: partidoId },
+          select: { estado: true },
+        });
+        const nuevoEstado = await this.resolverTransicionEstado(
+          tx,
+          partidoId,
+          estadoActual.estado,
+          dto,
+        );
+
         const evento = await tx.eventoPartido.create({
           data: {
             partidoId,
@@ -116,34 +133,49 @@ export class EventosService {
           data: {
             marcadorLocal: marcador.local,
             marcadorVisitante: marcador.visitante,
-            ...(nuevoEstado !== partido.estado ? { estado: nuevoEstado } : {}),
+            ...(nuevoEstado !== estadoActual.estado
+              ? { estado: nuevoEstado }
+              : {}),
           },
         });
 
         if (
           nuevoEstado === 'FINALIZADO' &&
-          nuevoEstado !== partido.estado &&
+          nuevoEstado !== estadoActual.estado &&
           partido.asignaciones.length > 1
         ) {
           // Finding 1: solo se alimenta al detector con eventos que siguen
           // vigentes (no cancelados por un UNDO_LAST_ACTION posterior),
-          // usando la MISMA pila de cancelación que calcularMarcador (ver
-          // marcador.ts) — así nunca se puede emparejar como "posible
-          // duplicado" un evento que el marcador ya ignora. Sin este filtro,
-          // resolver la discrepancia descartando el evento vigente real
-          // dejaría el marcador corrupto sin forma de arreglarlo desde el
-          // producto (los eventos nunca se borran).
+          // usando la MISMA pila de cancelación que calcularMarcador — así
+          // nunca se puede emparejar como "posible duplicado" un evento que
+          // el marcador ya ignora.
           const vigentes = filtrarEventosVigentes(todos);
           const pares = detectarDiscrepancias(vigentes);
           if (pares.length > 0) {
-            await tx.discrepanciaEvento.createMany({
-              data: pares.map((p) => ({
-                partidoId,
-                eventoAId: p.eventoAId,
-                eventoBId: p.eventoBId,
-                estado: 'PENDIENTE',
-              })),
-            });
+            try {
+              await tx.discrepanciaEvento.createMany({
+                data: pares.map((p) => ({
+                  partidoId,
+                  eventoAId: p.eventoAId,
+                  eventoBId: p.eventoBId,
+                  estado: 'PENDIENTE',
+                })),
+              });
+            } catch (err) {
+              // Backstop de la restricción única @@unique([eventoAId,
+              // eventoBId]) del schema, además de la lectura fresca de
+              // arriba: si por lo que sea este mismo par ya existiera (no
+              // debería, la lectura fresca ya cierra la carrera del
+              // finding 2), se trata como "ya detectado" en vez de tirar
+              // toda la transacción — `skipDuplicates` de Prisma no está
+              // disponible en SQLite, así que el no-op se hace a mano.
+              if (!(
+                err instanceof Prisma.PrismaClientKnownRequestError &&
+                err.code === 'P2002'
+              )) {
+                throw err;
+              }
+            }
           }
         }
 
@@ -235,18 +267,29 @@ export class EventosService {
    * PROGRAMADO solo acepta INICIO_MITAD (transiciona a EN_CURSO).
    * FINALIZADO no acepta más eventos.
    * El segundo FIN_MITAD en EN_CURSO cierra el partido.
+   *
+   * Recibe `tx` (el cliente de la transacción) y `estadoActual` ya leído
+   * fresco DESDE DENTRO de esa transacción (HU-2.6, finding 2) — nunca del
+   * `this.prisma` exterior. Dos árbitros pulsando "fin de partido" casi al
+   * mismo tiempo generan dos transacciones; SQLite las serializa, así que
+   * la segunda en arrancar ve aquí el `estado`/conteo de FIN_MITAD que la
+   * primera ya confirmó, y esta función la trata como un evento tardío
+   * normal (mismo error que cualquier evento después de FINALIZADO) en vez
+   * de volver a finalizar y volver a disparar la detección de
+   * discrepancias.
    */
   private async resolverTransicionEstado(
+    tx: Prisma.TransactionClient,
     partidoId: string,
-    partido: { estado: string },
+    estadoActual: string,
     dto: RegistrarEventoDto,
   ): Promise<string> {
-    if (partido.estado === 'FINALIZADO') {
+    if (estadoActual === 'FINALIZADO') {
       throw new BadRequestException(
         'El partido ya finalizó; no admite más eventos',
       );
     }
-    if (partido.estado === 'PROGRAMADO') {
+    if (estadoActual === 'PROGRAMADO') {
       if (dto.tipoEvento !== 'INICIO_MITAD') {
         throw new BadRequestException(
           'El partido no ha comenzado: el primer evento debe ser INICIO_MITAD',
@@ -255,11 +298,11 @@ export class EventosService {
       return 'EN_CURSO';
     }
     if (dto.tipoEvento === 'FIN_MITAD') {
-      const finesPrevios = await this.prisma.eventoPartido.count({
+      const finesPrevios = await tx.eventoPartido.count({
         where: { partidoId, tipoEvento: 'FIN_MITAD' },
       });
       if (finesPrevios >= 1) return 'FINALIZADO';
     }
-    return partido.estado;
+    return estadoActual;
   }
 }
