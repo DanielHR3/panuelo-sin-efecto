@@ -1,6 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { authedFetch } from "@/lib/server-api";
-import type { Liga, Equipo, Partido, Usuario, EstadoPartido } from "@/lib/types";
+import type { Liga, Equipo, Partido, Usuario, EstadoPartido, Discrepancia } from "@/lib/types";
 import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
@@ -10,6 +10,7 @@ import {
   avanzarEstado,
   asignarArbitro,
   quitarArbitro,
+  resolverDiscrepancia,
 } from "./actions";
 
 const ESTADO_SIGUIENTE: Record<EstadoPartido, EstadoPartido | null> = {
@@ -36,6 +37,16 @@ export default async function PartidosPage({
         authedFetch<Usuario[]>("/usuarios?rol=ARBITRO"),
       ])
     : [[], [], []];
+
+  const finalizados = partidos.filter((p) => p.estado === "FINALIZADO");
+  const discrepanciasPorPartido = new Map<string, Discrepancia[]>(
+    await Promise.all(
+      finalizados.map(
+        async (p) =>
+          [p.id, await authedFetch<Discrepancia[]>(`/partidos/${p.id}/discrepancias`)] as const,
+      ),
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -156,6 +167,7 @@ export default async function PartidosPage({
                   partido={partido}
                   equipos={equipos}
                   arbitros={arbitros}
+                  discrepancias={discrepanciasPorPartido.get(partido.id) ?? []}
                 />
               ))}
             </div>
@@ -170,16 +182,19 @@ function PartidoCard({
   partido,
   equipos,
   arbitros,
+  discrepancias,
 }: {
   partido: Partido;
   equipos: Equipo[];
   arbitros: Usuario[];
+  discrepancias: Discrepancia[];
 }) {
   const local = equipos.find((e) => e.id === partido.equipoLocalId)?.nombre ?? "?";
   const visitante = equipos.find((e) => e.id === partido.equipoVisitanteId)?.nombre ?? "?";
   const siguiente = ESTADO_SIGUIENTE[partido.estado];
   const asignados = new Set((partido.asignaciones ?? []).map((a) => a.arbitroId));
   const disponibles = arbitros.filter((a) => !asignados.has(a.id));
+  const pendientes = discrepancias.filter((d) => d.estado === "PENDIENTE");
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col gap-4">
@@ -266,6 +281,65 @@ function PartidoCard({
             </SubmitButton>
           </ActionForm>
         )}
+      </div>
+
+      {pendientes.length > 0 && (
+        <div className="border-t border-amber-200 dark:border-amber-900/50 pt-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-3">
+            ⚠️ {pendientes.length} discrepancia{pendientes.length === 1 ? "" : "s"} por resolver
+          </p>
+          <div className="flex flex-col gap-3">
+            {pendientes.map((d) => (
+              <DiscrepanciaRow key={d.id} partidoId={partido.id} discrepancia={d} arbitros={arbitros} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiscrepanciaRow({
+  partidoId,
+  discrepancia,
+  arbitros,
+}: {
+  partidoId: string;
+  discrepancia: Discrepancia;
+  arbitros: Usuario[];
+}) {
+  const nombreArbitro = (id: string) => arbitros.find((a) => a.id === id)?.nombre ?? id;
+  const describirEvento = (e: (typeof discrepancia)["eventoA"]) =>
+    `${e.tipoEvento} · ${nombreArbitro(e.arbitroId)} · ${new Date(e.timestamp).toLocaleTimeString("es-MX")}`;
+
+  return (
+    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="flex flex-col gap-1">
+          <span className="font-bold">Evento A</span>
+          <span className="text-slate-500 dark:text-slate-400">{describirEvento(discrepancia.eventoA)}</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="font-bold">Evento B</span>
+          <span className="text-slate-500 dark:text-slate-400">{describirEvento(discrepancia.eventoB)}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <ActionForm action={resolverDiscrepancia.bind(null, partidoId, discrepancia.id, "DESCARTAR_A")}>
+          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400">
+            Descartar A
+          </SubmitButton>
+        </ActionForm>
+        <ActionForm action={resolverDiscrepancia.bind(null, partidoId, discrepancia.id, "DESCARTAR_B")}>
+          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400">
+            Descartar B
+          </SubmitButton>
+        </ActionForm>
+        <ActionForm action={resolverDiscrepancia.bind(null, partidoId, discrepancia.id, "MANTENER_AMBOS")}>
+          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800">
+            Mantener ambos
+          </SubmitButton>
+        </ActionForm>
       </div>
     </div>
   );
