@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { authedFetch } from "@/lib/server-api";
 import { ApiError } from "@/lib/api";
 import type { ActionState } from "../_components/ActionForm";
-import type { Dificultad, EstadoPartido, RolEnCampo } from "@/lib/types";
+import type { AccionResolucion, Dificultad, EstadoPartido, RolEnCampo } from "@/lib/types";
 
 function readString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -106,6 +106,24 @@ export async function quitarArbitro(
     });
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "No se pudo quitar al árbitro" };
+  }
+  revalidatePath("/admin/partidos");
+}
+
+export async function resolverDiscrepancia(
+  partidoId: string,
+  discrepanciaId: string,
+  accion: AccionResolucion,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  try {
+    await authedFetch(`/partidos/${partidoId}/discrepancias/${discrepanciaId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ accion }),
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "No se pudo resolver la discrepancia" };
   }
   revalidatePath("/admin/partidos");
 }
