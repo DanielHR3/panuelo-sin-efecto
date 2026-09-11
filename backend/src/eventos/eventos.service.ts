@@ -10,6 +10,7 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { RegistrarEventoDto } from './dto/registrar-evento.dto';
 import { calcularMarcador, type Marcador } from './marcador';
 import { puntosDe } from './evento.constants';
+import { detectarDiscrepancias } from './discrepancias';
 
 @Injectable()
 export class EventosService {
@@ -114,6 +115,24 @@ export class EventosService {
             ...(nuevoEstado !== partido.estado ? { estado: nuevoEstado } : {}),
           },
         });
+
+        if (
+          nuevoEstado === 'FINALIZADO' &&
+          nuevoEstado !== partido.estado &&
+          partido.asignaciones.length > 1
+        ) {
+          const pares = detectarDiscrepancias(todos);
+          if (pares.length > 0) {
+            await tx.discrepanciaEvento.createMany({
+              data: pares.map((p) => ({
+                partidoId,
+                eventoAId: p.eventoAId,
+                eventoBId: p.eventoBId,
+                estado: 'PENDIENTE',
+              })),
+            });
+          }
+        }
 
         return { evento, marcador, duplicado: false };
       });

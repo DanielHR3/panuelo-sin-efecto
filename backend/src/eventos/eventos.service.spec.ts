@@ -42,6 +42,7 @@ function partidoBase(estado: string) {
 const mockTx = {
   eventoPartido: { create: jest.fn(), findMany: jest.fn() },
   partido: { update: jest.fn() },
+  discrepanciaEvento: { createMany: jest.fn() },
 };
 
 const mockPrisma = {
@@ -256,5 +257,106 @@ describe('EventosService', () => {
       { where: { descartado?: boolean } },
     ];
     expect(arg.where.descartado).toBe(false);
+  });
+
+  it('al finalizar con más de un árbitro asignado, crea discrepancias si detectarDiscrepancias encuentra pares', async () => {
+    const partidoDosArbitros = {
+      ...partidoBase('EN_CURSO'),
+      asignaciones: [{ arbitroId: 'ref-1' }, { arbitroId: 'ref-2' }],
+    };
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(partidoDosArbitros);
+    mockPrisma.eventoPartido.count.mockResolvedValueOnce(1); // ya hubo un FIN_MITAD
+    mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+      {
+        id: 'e1',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-1',
+        timestamp: new Date('2026-09-20T18:00:00.000Z'),
+      },
+      {
+        id: 'e2',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-2',
+        timestamp: new Date('2026-09-20T18:00:05.000Z'),
+      },
+    ]);
+
+    await service.registrar('p1', { tipoEvento: 'FIN_MITAD' }, arbitroAsignado);
+
+    expect(mockTx.discrepanciaEvento.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          partidoId: 'p1',
+          eventoAId: 'e1',
+          eventoBId: 'e2',
+          estado: 'PENDIENTE',
+        },
+      ],
+    });
+  });
+
+  it('no crea discrepancias si solo hay un árbitro asignado', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(
+      partidoBase('EN_CURSO'), // asignaciones: [{ arbitroId: 'ref-1' }] — uno solo
+    );
+    mockPrisma.eventoPartido.count.mockResolvedValueOnce(1);
+    mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+      {
+        id: 'e1',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-1',
+        timestamp: new Date('2026-09-20T18:00:00.000Z'),
+      },
+      {
+        id: 'e2',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-2', // hipotético — no debería importar, solo hay 1 asignación
+        timestamp: new Date('2026-09-20T18:00:05.000Z'),
+      },
+    ]);
+
+    await service.registrar('p1', { tipoEvento: 'FIN_MITAD' }, arbitroAsignado);
+
+    expect(mockTx.discrepanciaEvento.createMany).not.toHaveBeenCalled();
+  });
+
+  it('no crea discrepancias si detectarDiscrepancias no encuentra pares', async () => {
+    const partidoDosArbitros = {
+      ...partidoBase('EN_CURSO'),
+      asignaciones: [{ arbitroId: 'ref-1' }, { arbitroId: 'ref-2' }],
+    };
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(partidoDosArbitros);
+    mockPrisma.eventoPartido.count.mockResolvedValueOnce(1);
+    mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+      {
+        id: 'e1',
+        tipoEvento: 'TD',
+        equipoId: LOCAL_ID,
+        arbitroId: 'ref-1',
+        timestamp: new Date('2026-09-20T18:00:00.000Z'),
+      },
+    ]);
+
+    await service.registrar('p1', { tipoEvento: 'FIN_MITAD' }, arbitroAsignado);
+
+    expect(mockTx.discrepanciaEvento.createMany).not.toHaveBeenCalled();
+  });
+
+  it('no crea discrepancias cuando el evento no finaliza el partido (no es el segundo FIN_MITAD)', async () => {
+    const partidoDosArbitros = {
+      ...partidoBase('EN_CURSO'),
+      asignaciones: [{ arbitroId: 'ref-1' }, { arbitroId: 'ref-2' }],
+    };
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(partidoDosArbitros);
+    await service.registrar(
+      'p1',
+      { tipoEvento: 'TD', equipoId: LOCAL_ID },
+      arbitroAsignado,
+    );
+    expect(mockTx.discrepanciaEvento.createMany).not.toHaveBeenCalled();
   });
 });
