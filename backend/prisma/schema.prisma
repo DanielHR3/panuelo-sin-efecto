@@ -17,6 +17,10 @@ model Usuario {
   passwordHash       String
   rol                String               // 'SUPERADMIN', 'LIGA_ADMIN', 'ARBITRO'
 
+  // HU-2.7: árbitro sin cuenta. Se crea solo al abrir un "partido rápido";
+  // el email es sintético (no se puede iniciar sesión con contraseña).
+  esInvitado         Boolean              @default(false)
+
   ligasPropias       Liga[]               @relation("PropietarioLiga")
   asignaciones       AsignacionArbitral[]
   eventosRegistrados EventoPartido[]      @relation("ArbitroRegistrador")
@@ -36,6 +40,10 @@ model Liga {
   logoUrl                String?
   registraMvp            Boolean @default(true)
   registraIntercepciones Boolean @default(true)
+
+  // HU-2.7: 'LIGA' (normal) o 'RAPIDA' (contenedor personal de los partidos
+  // rápidos de un árbitro invitado; no aparece en la landing pública).
+  tipo                   String  @default("LIGA")
 
   propietarioId String
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])

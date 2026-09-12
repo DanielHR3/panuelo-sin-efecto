@@ -18,6 +18,7 @@ import { PartidosModule } from './partidos/partidos.module';
 import { EventosModule } from './eventos/eventos.module';
 import { DiscrepanciasModule } from './discrepancias/discrepancias.module';
 import { PublicoModule } from './publico/publico.module';
+import { RapidoModule } from './rapido/rapido.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { PublicoModule } from './publico/publico.module';
     EventosModule,
     DiscrepanciasModule,
     PublicoModule,
+    RapidoModule,
   ],
   controllers: [AppController],
   providers: [
