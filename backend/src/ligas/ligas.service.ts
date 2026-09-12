@@ -10,6 +10,15 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateLigaDto } from './dto/create-liga.dto';
 import { UpdateLigaDto } from './dto/update-liga.dto';
 
+/** HU-1.1: el formulario manda "" para "sin logo"; en la base es null. */
+function normalizarLogo(
+  logoUrl: string | undefined,
+): string | null | undefined {
+  if (logoUrl === undefined) return undefined;
+  const limpio = logoUrl.trim();
+  return limpio === '' ? null : limpio;
+}
+
 @Injectable()
 export class LigasService {
   constructor(
@@ -26,7 +35,13 @@ export class LigasService {
 
     try {
       return await this.prisma.liga.create({
-        data: { nombre: createLigaDto.nombre, propietarioId },
+        data: {
+          nombre: createLigaDto.nombre,
+          propietarioId,
+          logoUrl: normalizarLogo(createLigaDto.logoUrl) ?? null,
+          registraMvp: createLigaDto.registraMvp ?? true,
+          registraIntercepciones: createLigaDto.registraIntercepciones ?? true,
+        },
       });
     } catch (error) {
       if (
@@ -58,7 +73,14 @@ export class LigasService {
 
   async update(id: string, dto: UpdateLigaDto, user: AuthUser) {
     await this.ownership.assertCanManageLiga(id, user);
-    return this.prisma.liga.update({ where: { id }, data: dto });
+    const data: Prisma.LigaUpdateInput = {};
+    if (dto.nombre !== undefined) data.nombre = dto.nombre;
+    if (dto.logoUrl !== undefined) data.logoUrl = normalizarLogo(dto.logoUrl);
+    if (dto.registraMvp !== undefined) data.registraMvp = dto.registraMvp;
+    if (dto.registraIntercepciones !== undefined) {
+      data.registraIntercepciones = dto.registraIntercepciones;
+    }
+    return this.prisma.liga.update({ where: { id }, data });
   }
 
   async remove(id: string, user: AuthUser) {

@@ -120,3 +120,46 @@ export function useHalfTimer(
     toggle: running ? pause : start,
   };
 }
+
+/**
+ * Bloqueo de pantalla del árbitro (HU-2.3): evita toques accidentales en el
+ * marcador cuando el teléfono va en el bolsillo o se deja sobre la mesa.
+ *
+ * Se dispara por inactividad (ningún `pointerdown` en toda la pantalla
+ * durante `timeoutMs`) o manualmente vía `lock()`. `disabled` frena el
+ * temporizador de inactividad —no el bloqueo manual— mientras hay un flujo
+ * a mitad de paso (el modal de selección de jugador abierto): bloquear ahí
+ * dejaría al árbitro atascado sin poder ni terminar ni cancelar la acción.
+ *
+ * El propio bloqueo cuenta como "sin actividad": una vez `locked`, dejamos
+ * de escuchar `pointerdown` para no reiniciar un timeout que ya no importa
+ * (el overlay de desbloqueo tiene su propio gesto, ver `LockOverlay`).
+ */
+export function useScreenLock(timeoutMs: number, options?: { disabled?: boolean }) {
+  const [locked, setLocked] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const disabled = options?.disabled ?? false;
+
+  const lock = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setLocked(true);
+  }, []);
+
+  const unlock = useCallback(() => setLocked(false), []);
+
+  useEffect(() => {
+    if (locked || disabled) return;
+    const resetTimer = () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setLocked(true), timeoutMs);
+    };
+    resetTimer();
+    window.addEventListener("pointerdown", resetTimer);
+    return () => {
+      window.removeEventListener("pointerdown", resetTimer);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [locked, disabled, timeoutMs]);
+
+  return { locked, lock, unlock };
+}

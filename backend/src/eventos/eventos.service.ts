@@ -8,8 +8,13 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { RegistrarEventoDto } from './dto/registrar-evento.dto';
-import { calcularMarcador, type Marcador } from './marcador';
+import {
+  calcularMarcador,
+  filtrarEventosVigentes,
+  type Marcador,
+} from './marcador';
 import { puntosDe } from './evento.constants';
+import { detectarDiscrepancias } from './discrepancias';
 
 @Injectable()
 export class EventosService {
@@ -20,10 +25,15 @@ export class EventosService {
     dto: RegistrarEventoDto,
     arbitro: AuthUser,
   ): Promise<{ evento: unknown; marcador: Marcador; duplicado: boolean }> {
+    // Nota (HU-2.6, finding 2): este `partido` solo se usa para autorización
+    // (categoria/liga/asignaciones) y los ids de equipo — nunca para decidir
+    // la transición de estado. `estado` se relee FRESCO desde dentro de la
+    // transacción (ver más abajo), porque dos árbitros pulsando "fin de
+    // partido" casi al mismo tiempo pueden leer este `estado` de aquí afuera
+    // ANTES de que exista ninguna transacción confirmada.
     const partido = await this.prisma.partido.findUnique({
       where: { id: partidoId },
       select: {
-        estado: true,
         equipoLocalId: true,
         equipoVisitanteId: true,
         categoria: { select: { liga: { select: { propietarioId: true } } } },
@@ -69,14 +79,28 @@ export class EventosService {
       );
     }
 
-    const nuevoEstado = await this.resolverTransicionEstado(
-      partidoId,
-      partido,
-      dto,
-    );
-
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // Serialización por partido (HU-2.6, finding 2). En PostgreSQL con
+        // READ COMMITTED dos transacciones concurrentes NO se serializan
+        // solas (SQLite sí lo hacía): ambas podrían leer "EN_CURSO" y
+        // finalizar/detectar dos veces. El bloqueo de fila hace que la
+        // segunda espere a que la primera confirme, y su lectura fresca de
+        // abajo vea ya FINALIZADO — y se rechace como cualquier evento
+        // genuinamente tardío.
+        await tx.$executeRaw`SELECT "id" FROM "Partido" WHERE "id" = ${partidoId} FOR UPDATE`;
+
+        const estadoActual = await tx.partido.findUniqueOrThrow({
+          where: { id: partidoId },
+          select: { estado: true },
+        });
+        const nuevoEstado = await this.resolverTransicionEstado(
+          tx,
+          partidoId,
+          estadoActual.estado,
+          dto,
+        );
+
         const evento = await tx.eventoPartido.create({
           data: {
             partidoId,
@@ -90,9 +114,15 @@ export class EventosService {
         });
 
         const todos = await tx.eventoPartido.findMany({
-          where: { partidoId },
+          where: { partidoId, descartado: false },
           orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
-          select: { tipoEvento: true, equipoId: true },
+          select: {
+            id: true,
+            tipoEvento: true,
+            equipoId: true,
+            arbitroId: true,
+            timestamp: true,
+          },
         });
         const marcador = calcularMarcador(
           todos,
@@ -105,9 +135,42 @@ export class EventosService {
           data: {
             marcadorLocal: marcador.local,
             marcadorVisitante: marcador.visitante,
-            ...(nuevoEstado !== partido.estado ? { estado: nuevoEstado } : {}),
+            ...(nuevoEstado !== estadoActual.estado
+              ? { estado: nuevoEstado }
+              : {}),
           },
         });
+
+        if (
+          nuevoEstado === 'FINALIZADO' &&
+          nuevoEstado !== estadoActual.estado &&
+          partido.asignaciones.length > 1
+        ) {
+          // Finding 1: solo se alimenta al detector con eventos que siguen
+          // vigentes (no cancelados por un UNDO_LAST_ACTION posterior),
+          // usando la MISMA pila de cancelación que calcularMarcador — así
+          // nunca se puede emparejar como "posible duplicado" un evento que
+          // el marcador ya ignora.
+          const vigentes = filtrarEventosVigentes(todos);
+          const pares = detectarDiscrepancias(vigentes);
+          if (pares.length > 0) {
+            // Backstop de la restricción única @@unique([eventoAId,
+            // eventoBId]) del schema, además del bloqueo de fila de arriba:
+            // si por lo que sea este mismo par ya existiera, se ignora en
+            // la propia base (ON CONFLICT DO NOTHING). Un catch de P2002
+            // no serviría: en PostgreSQL cualquier error dentro de la
+            // transacción la deja abortada y el resto fallaría igual.
+            await tx.discrepanciaEvento.createMany({
+              data: pares.map((p) => ({
+                partidoId,
+                eventoAId: p.eventoAId,
+                eventoBId: p.eventoBId,
+                estado: 'PENDIENTE',
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
 
         return { evento, marcador, duplicado: false };
       });
@@ -153,7 +216,7 @@ export class EventosService {
       throw new NotFoundException(`Partido ${partidoId} no encontrado`);
 
     const eventos = await this.prisma.eventoPartido.findMany({
-      where: { partidoId },
+      where: { partidoId, descartado: false },
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
       select: { tipoEvento: true, equipoId: true },
     });
@@ -197,18 +260,30 @@ export class EventosService {
    * PROGRAMADO solo acepta INICIO_MITAD (transiciona a EN_CURSO).
    * FINALIZADO no acepta más eventos.
    * El segundo FIN_MITAD en EN_CURSO cierra el partido.
+   *
+   * Recibe `tx` (el cliente de la transacción) y `estadoActual` ya leído
+   * fresco DESDE DENTRO de esa transacción (HU-2.6, finding 2) — nunca del
+   * `this.prisma` exterior. Dos árbitros pulsando "fin de partido" casi al
+   * mismo tiempo generan dos transacciones; el bloqueo de fila del partido
+   * (SELECT ... FOR UPDATE en `registrar`) las serializa, así que la
+   * segunda en obtener el bloqueo ve aquí el `estado`/conteo de FIN_MITAD
+   * que la primera ya confirmó, y esta función la trata como un evento
+   * tardío normal (mismo error que cualquier evento después de FINALIZADO)
+   * en vez de volver a finalizar y volver a disparar la detección de
+   * discrepancias.
    */
   private async resolverTransicionEstado(
+    tx: Prisma.TransactionClient,
     partidoId: string,
-    partido: { estado: string },
+    estadoActual: string,
     dto: RegistrarEventoDto,
   ): Promise<string> {
-    if (partido.estado === 'FINALIZADO') {
+    if (estadoActual === 'FINALIZADO') {
       throw new BadRequestException(
         'El partido ya finalizó; no admite más eventos',
       );
     }
-    if (partido.estado === 'PROGRAMADO') {
+    if (estadoActual === 'PROGRAMADO') {
       if (dto.tipoEvento !== 'INICIO_MITAD') {
         throw new BadRequestException(
           'El partido no ha comenzado: el primer evento debe ser INICIO_MITAD',
@@ -217,11 +292,11 @@ export class EventosService {
       return 'EN_CURSO';
     }
     if (dto.tipoEvento === 'FIN_MITAD') {
-      const finesPrevios = await this.prisma.eventoPartido.count({
+      const finesPrevios = await tx.eventoPartido.count({
         where: { partidoId, tipoEvento: 'FIN_MITAD' },
       });
       if (finesPrevios >= 1) return 'FINALIZADO';
     }
-    return partido.estado;
+    return estadoActual;
   }
 }

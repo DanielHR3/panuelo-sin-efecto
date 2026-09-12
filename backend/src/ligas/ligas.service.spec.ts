@@ -51,7 +51,11 @@ describe('LigasService', () => {
       );
 
       expect(mockPrisma.liga.create).toHaveBeenCalledWith({
-        data: { nombre: 'Liga X', propietarioId: 'user-1' },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          nombre: 'Liga X',
+          propietarioId: 'user-1',
+        }),
       });
     });
 
@@ -66,7 +70,55 @@ describe('LigasService', () => {
       );
 
       expect(mockPrisma.liga.create).toHaveBeenCalledWith({
-        data: { nombre: 'Liga X', propietarioId: 'destinatario' },
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          nombre: 'Liga X',
+          propietarioId: 'destinatario',
+        }),
+      });
+    });
+
+    it('HU-1.1: guarda logo y banderas de MVP/intercepciones cuando vienen en el body', async () => {
+      mockPrisma.liga.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l1', ...data }),
+      );
+
+      await service.create(
+        {
+          nombre: 'Liga X',
+          logoUrl: 'https://cdn.example.com/logo.png',
+          registraMvp: false,
+          registraIntercepciones: true,
+        },
+        arbitro,
+      );
+
+      expect(mockPrisma.liga.create).toHaveBeenCalledWith({
+        data: {
+          nombre: 'Liga X',
+          propietarioId: 'user-1',
+          logoUrl: 'https://cdn.example.com/logo.png',
+          registraMvp: false,
+          registraIntercepciones: true,
+        },
+      });
+    });
+
+    it('HU-1.1: sin banderas en el body, la liga registra MVP e intercepciones por defecto', async () => {
+      mockPrisma.liga.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l1', ...data }),
+      );
+
+      await service.create({ nombre: 'Liga X' }, arbitro);
+
+      expect(mockPrisma.liga.create).toHaveBeenCalledWith({
+        data: {
+          nombre: 'Liga X',
+          propietarioId: 'user-1',
+          logoUrl: null,
+          registraMvp: true,
+          registraIntercepciones: true,
+        },
       });
     });
 
@@ -111,6 +163,28 @@ describe('LigasService', () => {
         'l1',
         arbitro,
       );
+    });
+
+    it('HU-1.1: permite cambiar solo la configuración sin tocar el nombre', async () => {
+      mockPrisma.liga.update.mockResolvedValueOnce({ id: 'l1' });
+      await service.update(
+        'l1',
+        { registraMvp: false, logoUrl: 'https://cdn.example.com/x.png' },
+        arbitro,
+      );
+      expect(mockPrisma.liga.update).toHaveBeenCalledWith({
+        where: { id: 'l1' },
+        data: { registraMvp: false, logoUrl: 'https://cdn.example.com/x.png' },
+      });
+    });
+
+    it('HU-1.1: un logoUrl vacío se guarda como null (quitar el logo)', async () => {
+      mockPrisma.liga.update.mockResolvedValueOnce({ id: 'l1' });
+      await service.update('l1', { logoUrl: '' }, arbitro);
+      expect(mockPrisma.liga.update).toHaveBeenCalledWith({
+        where: { id: 'l1' },
+        data: { logoUrl: null },
+      });
     });
   });
 

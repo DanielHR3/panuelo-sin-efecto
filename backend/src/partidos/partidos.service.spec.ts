@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PartidosService } from './partidos.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
@@ -17,6 +21,7 @@ const mockPrisma = {
   },
   equipo: { findMany: jest.fn() },
   usuario: { findUnique: jest.fn() },
+  jugador: { findUnique: jest.fn() },
   asignacionArbitral: {
     findMany: jest.fn(),
     upsert: jest.fn(),
@@ -167,6 +172,15 @@ describe('PartidosService', () => {
     });
   });
 
+  it('findOne() incluye el jugador elegido como MVP', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
+    await service.findOne('p1');
+    const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
+      { include: { mvpJugador: unknown } },
+    ];
+    expect(arg.include.mvpJugador).toBe(true);
+  });
+
   it('findAllByCategoria() incluye las asignaciones con los datos públicos del árbitro', async () => {
     mockPrisma.partido.findMany.mockResolvedValueOnce([]);
     await service.findAllByCategoria('cat-1');
@@ -175,6 +189,134 @@ describe('PartidosService', () => {
     ];
     expect(arg.include.asignaciones).toEqual({
       include: { arbitro: { select: { id: true, nombre: true, email: true } } },
+    });
+  });
+
+  describe('setMvp', () => {
+    const LOCAL_ID = 'equipo-local';
+    const VISITA_ID = 'equipo-visitante';
+    const arbitroAsignado: AuthUser = {
+      sub: 'ref-1',
+      email: 'r@r.mx',
+      rol: 'ARBITRO',
+    };
+    const arbitroAjeno: AuthUser = {
+      sub: 'ref-2',
+      email: 'r2@r.mx',
+      rol: 'ARBITRO',
+    };
+    const superadmin: AuthUser = {
+      sub: 'boss',
+      email: 'x@y.z',
+      rol: 'SUPERADMIN',
+    };
+
+    function partidoBase(estado: string) {
+      return {
+        estado,
+        equipoLocalId: LOCAL_ID,
+        equipoVisitanteId: VISITA_ID,
+        categoria: { liga: { propietarioId: 'liga-admin-dueno' } },
+        asignaciones: [{ arbitroId: 'ref-1' }],
+      };
+    }
+
+    it('lanza NotFound si el partido no existe', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.setMvp('p1', { jugadorId: 'j1' }, arbitroAsignado),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rechaza a un árbitro no asignado ni dueño', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      await expect(
+        service.setMvp('p1', { jugadorId: 'j1' }, arbitroAjeno),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rechaza si el partido no está FINALIZADO', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('EN_CURSO'),
+      );
+      await expect(
+        service.setMvp('p1', { jugadorId: 'j1' }, arbitroAsignado),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza si el jugador no pertenece a ninguno de los dos equipos', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      mockPrisma.jugador.findUnique.mockResolvedValueOnce({
+        equipoId: 'otro-equipo',
+      });
+      await expect(
+        service.setMvp('p1', { jugadorId: 'j1' }, arbitroAsignado),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rechaza si el jugador no existe', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      mockPrisma.jugador.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.setMvp('p1', { jugadorId: 'j1' }, arbitroAsignado),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('permite al árbitro asignado elegir un jugador del equipo visitante', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      mockPrisma.jugador.findUnique.mockResolvedValueOnce({
+        equipoId: VISITA_ID,
+      });
+      mockPrisma.partido.update.mockResolvedValueOnce({ id: 'p1' });
+
+      await service.setMvp('p1', { jugadorId: 'j1' }, arbitroAsignado);
+
+      expect(mockPrisma.partido.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'p1' },
+          data: { mvpJugadorId: 'j1' },
+        }),
+      );
+    });
+
+    it('permite al dueño de la liga aunque no esté asignado como árbitro', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      mockPrisma.jugador.findUnique.mockResolvedValueOnce({
+        equipoId: LOCAL_ID,
+      });
+      mockPrisma.partido.update.mockResolvedValueOnce({ id: 'p1' });
+
+      await expect(
+        service.setMvp(
+          'p1',
+          { jugadorId: 'j1' },
+          { sub: 'liga-admin-dueno', email: 'd@d.mx', rol: 'LIGA_ADMIN' },
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('permite al SUPERADMIN aunque no esté asignado ni sea dueño', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      mockPrisma.jugador.findUnique.mockResolvedValueOnce({
+        equipoId: LOCAL_ID,
+      });
+      mockPrisma.partido.update.mockResolvedValueOnce({ id: 'p1' });
+
+      await expect(
+        service.setMvp('p1', { jugadorId: 'j1' }, superadmin),
+      ).resolves.toBeDefined();
     });
   });
 });

@@ -48,7 +48,10 @@ export class LigasController {
   @Patch(':id')
   @Roles('SUPERADMIN', 'LIGA_ADMIN')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Renombra una liga' })
+  @ApiOperation({
+    summary:
+      'Actualiza una liga: nombre, logo y/o banderas de MVP e intercepciones (HU-1.1)',
+  })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateLigaDto,

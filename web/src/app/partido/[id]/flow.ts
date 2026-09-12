@@ -80,6 +80,17 @@ export const DEFPLAY_LABEL: Record<DefplayTipo, string> = {
   SAFETY: "🔒 Safety",
 };
 
+/**
+ * HU-1.1: jugadas defensivas que se le ofrecen al árbitro según la
+ * configuración de la liga. Si la liga no lleva registro de intercepciones,
+ * INTERCEPCION desaparece del modal; PICK_SIX no se toca porque anota puntos
+ * (vive en el flujo de TD, no aquí).
+ */
+export function opcionesDefplay(registraIntercepciones: boolean): DefplayTipo[] {
+  const todas = Object.keys(DEFPLAY_LABEL) as DefplayTipo[];
+  return registraIntercepciones ? todas : todas.filter((t) => t !== "INTERCEPCION");
+}
+
 export const STEP_TITLE: Record<Exclude<FlowState["step"], "closed">, string> = {
   td_type: "¿Cómo fue la anotación?",
   td_player: "¿Quién anotó?",

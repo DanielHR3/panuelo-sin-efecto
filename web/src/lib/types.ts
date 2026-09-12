@@ -20,6 +20,12 @@ export interface Categoria {
 export interface Liga {
   id: string;
   nombre: string;
+  /** HU-1.1: URL pública del logo, o null si la liga no tiene. */
+  logoUrl: string | null;
+  /** HU-1.1: la PWA exige elegir MVP al finalizar cada partido. */
+  registraMvp: boolean;
+  /** HU-1.1: la PWA ofrece el evento INTERCEPCION al árbitro. */
+  registraIntercepciones: boolean;
   propietarioId: string;
   categorias: Categoria[];
   createdAt: string;
@@ -77,6 +83,8 @@ export interface Partido {
   equipoVisitante?: Equipo;
   asignaciones?: AsignacionArbitral[];
   categoria?: Categoria & { liga: Liga };
+  mvpJugadorId?: string | null;
+  mvpJugador?: Jugador | null;
 }
 
 /** Detalle de partido con el roster completo (GET /partidos/:id). */
@@ -120,4 +128,27 @@ export interface GameEvent {
 export interface Marcador {
   local: number;
   visitante: number;
+}
+
+export interface EventoDiscrepancia {
+  id: string;
+  tipoEvento: TipoEvento;
+  equipoId: string | null;
+  jugadorId: string | null;
+  arbitroId: string;
+  timestamp: string;
+  descartado: boolean;
+}
+
+export type AccionResolucion = "DESCARTAR_A" | "DESCARTAR_B" | "MANTENER_AMBOS";
+
+export interface Discrepancia {
+  id: string;
+  partidoId: string;
+  estado: "PENDIENTE" | "RESUELTA";
+  eventoA: EventoDiscrepancia;
+  eventoB: EventoDiscrepancia;
+  eventoDescartadoId: string | null;
+  resueltoPorId: string | null;
+  resolvedAt: string | null;
 }

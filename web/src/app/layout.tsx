@@ -14,6 +14,20 @@ export const metadata: Metadata = {
   description: "App de Arbitraje Inteligente",
   // El manifest lo sirve app/manifest.ts (file convention de Next):
   // se enlaza solo, no hace falta declararlo aquí.
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    // iOS no lee el manifest para el ícono de pantalla de inicio: usa esta
+    // etiqueta. Sin transparencia ni esquinas: iOS aplica su propia máscara.
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Pañuelo",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {

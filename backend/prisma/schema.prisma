@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -16,11 +16,12 @@ model Usuario {
   email              String               @unique
   passwordHash       String
   rol                String               // 'SUPERADMIN', 'LIGA_ADMIN', 'ARBITRO'
-  
+
   ligasPropias       Liga[]               @relation("PropietarioLiga")
   asignaciones       AsignacionArbitral[]
   eventosRegistrados EventoPartido[]      @relation("ArbitroRegistrador")
-  
+  discrepanciasResueltas DiscrepanciaEvento[]
+
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 }
@@ -28,7 +29,14 @@ model Usuario {
 model Liga {
   id            String      @id @default(uuid())
   nombre        String
-  
+
+  // HU-1.1: identidad y reglas generales de la liga. Las banderas deciden
+  // qué le exige la PWA al árbitro: elegir MVP al finalizar y ofrecer el
+  // evento INTERCEPCION (PICK_SIX sigue disponible siempre porque anota).
+  logoUrl                String?
+  registraMvp            Boolean @default(true)
+  registraIntercepciones Boolean @default(true)
+
   propietarioId String
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
   
@@ -80,7 +88,8 @@ model Jugador {
   equipo        Equipo          @relation(fields: [equipoId], references: [id])
   
   eventos       EventoPartido[]
-  
+  partidosMvp   Partido[]       @relation("PartidoMvp")
+
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -107,7 +116,16 @@ model Partido {
   
   asignaciones      AsignacionArbitral[]
   eventos           EventoPartido[]
-  
+
+  // MVP del partido (HU-2.5): se elige una vez FINALIZADO, entre el roster
+  // de cualquiera de los dos equipos. Nullable porque no todo partido lo
+  // tiene todavía (obligatorio en el flujo del árbitro, pero editable
+  // después, así que nunca es un requisito a nivel de fila).
+  mvpJugadorId      String?
+  mvpJugador        Jugador?             @relation("PartidoMvp", fields: [mvpJugadorId], references: [id])
+
+  discrepancias     DiscrepanciaEvento[]
+
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }
@@ -135,6 +153,11 @@ model EventoPartido {
   // directamente en el servidor.
   clientEventId String?
 
+  // Reconciliación entre árbitros (HU-2.6): flag suave, la fila nunca se
+  // borra (Caja Negra) — solo se excluye del cálculo del marcador cuando un
+  // admin resuelve una discrepancia descartando este evento.
+  descartado    Boolean  @default(false)
+
   partidoId     String
   partido       Partido  @relation(fields: [partidoId], references: [id])
 
@@ -147,6 +170,42 @@ model EventoPartido {
   arbitroId     String
   arbitro       Usuario  @relation("ArbitroRegistrador", fields: [arbitroId], references: [id])
 
+  discrepanciasComoA         DiscrepanciaEvento[] @relation("DiscrepanciaEventoA")
+  discrepanciasComoB         DiscrepanciaEvento[] @relation("DiscrepanciaEventoB")
+  discrepanciasDescartadoEn  DiscrepanciaEvento[] @relation("DiscrepanciaEventoDescartado")
+
   @@unique([partidoId, clientEventId])
   @@index([partidoId, timestamp])
+}
+
+model DiscrepanciaEvento {
+  id                 String    @id @default(uuid())
+
+  partidoId          String
+  partido            Partido       @relation(fields: [partidoId], references: [id])
+
+  eventoAId          String
+  eventoA            EventoPartido @relation("DiscrepanciaEventoA", fields: [eventoAId], references: [id])
+
+  eventoBId          String
+  eventoB            EventoPartido @relation("DiscrepanciaEventoB", fields: [eventoBId], references: [id])
+
+  estado             String    // PENDIENTE, RESUELTA
+
+  // Nulo si se resolvió como "mantener ambos" (falso positivo de la detección).
+  eventoDescartadoId String?
+  eventoDescartado   EventoPartido? @relation("DiscrepanciaEventoDescartado", fields: [eventoDescartadoId], references: [id])
+
+  resueltoPorId      String?
+  resueltoPor        Usuario?  @relation(fields: [resueltoPorId], references: [id])
+  resolvedAt         DateTime?
+
+  createdAt          DateTime  @default(now())
+
+  // Backstop de base de datos (HU-2.6, finding 2): además de la lectura
+  // fresca dentro de la transacción en eventos.service.ts, esta restricción
+  // impide que dos filas repitan el mismo par de eventos si algo lograra
+  // colarse igual (p. ej. datos ya duplicados de antes de este fix).
+  @@unique([eventoAId, eventoBId])
+  @@index([partidoId, estado])
 }
