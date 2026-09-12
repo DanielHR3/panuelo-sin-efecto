@@ -1,0 +1,32 @@
+name: Desplegar API en Render
+
+# Render se conectó por URL pública (sin cuenta de GitHub enlazada), así que
+# no recibe webhooks y su "Auto-Deploy: On Commit" nunca se dispara. Este
+# workflow llama al Deploy Hook de Render en cada push a main que toque el
+# backend. Requiere el secreto RENDER_DEPLOY_HOOK (Render → panuelo-api →
+# Settings → Deploy Hook). Si el secreto no existe, el job avisa y termina
+# sin fallar.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "render.yaml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Disparar deploy en Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::Falta el secreto RENDER_DEPLOY_HOOK; despliega a mano desde el panel de Render."
+            exit 0
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$HOOK")
+          echo "Deploy hook -> HTTP $code"
+          test "$code" = "200" || test "$code" = "201"
