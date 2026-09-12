@@ -1,13 +1,13 @@
 # Blueprint de Render (https://render.com/docs/blueprint-spec).
-# Despliega la API + PostgreSQL con "New > Blueprint" apuntando a este repo.
+# Despliega la API con "New > Blueprint" apuntando a este repo.
+#
+# La base de datos NO se crea aquí a propósito: el PostgreSQL gratuito de
+# Render caduca a los 30 días y se borra con todo. Se usa Neon (gratis, sin
+# caducidad): crear el proyecto en neon.tech y pegar su cadena de conexión
+# en DATABASE_URL al crear el servicio.
+#
 # La web (Next.js) se despliega aparte en Vercel apuntando a /web, con la
 # variable NEXT_PUBLIC_API_URL = URL pública de panuelo-api.
-databases:
-  - name: panuelo-db
-    plan: free
-    databaseName: panuelo
-    user: panuelo
-
 services:
   - type: web
     name: panuelo-api
@@ -17,17 +17,16 @@ services:
     dockerContext: ./backend
     healthCheckPath: /
     envVars:
+      # Cadena de Neon (formato postgresql://...neon.tech/panuelo?sslmode=require).
       - key: DATABASE_URL
-        fromDatabase:
-          name: panuelo-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: PORT
         value: 3000
-      # Orígenes permitidos por CORS: la URL de la web en Vercel. Se captura
-      # en el panel de Render al crear el servicio.
+      # Orígenes permitidos por CORS: la URL de la web en Vercel. Si se deja
+      # vacía, la API acepta cualquier origen (útil el primer día de pruebas).
       - key: CORS_ORIGINS
         sync: false
