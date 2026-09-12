@@ -19,6 +19,7 @@ import {
   avanzarEstado,
   asignarArbitro,
   quitarArbitro,
+  reabrirDiscrepancia,
   resolverDiscrepancia,
 } from "./actions";
 
@@ -74,13 +75,18 @@ export default async function PartidosPage({
   // Finding 4: el roster completo de cada equipo (para mostrar el jugador
   // de cada evento en las filas de discrepancia) no viene en
   // /categorias/:id/equipos — se resuelve aparte, mismo patrón N+1
-  // aceptado ya en este archivo para las discrepancias.
-  const equiposConRoster: EquipoConRoster[] =
-    equipos.length > 0
-      ? await Promise.all(
-          equipos.map((e) => apiFetch<EquipoConRoster>(`/equipos/${e.id}`)),
-        )
-      : [];
+  // aceptado ya en este archivo para las discrepancias. Igual que ahí,
+  // cada fetch falla en aislado: un roster que no cargue solo deja a sus
+  // jugadores como "sin jugador" en vez de tirar la página entera.
+  const equiposConRoster: EquipoConRoster[] = await Promise.all(
+    equipos.map(async (e) => {
+      try {
+        return await apiFetch<EquipoConRoster>(`/equipos/${e.id}`);
+      } catch {
+        return { ...e, jugadores: [] };
+      }
+    }),
+  );
   const jugadoresPorId = new Map<string, Jugador>(
     equiposConRoster.flatMap((e) => e.jugadores.map((j) => [j.id, j] as const)),
   );
@@ -235,6 +241,7 @@ function PartidoCard({
   const asignados = new Set((partido.asignaciones ?? []).map((a) => a.arbitroId));
   const disponibles = arbitros.filter((a) => !asignados.has(a.id));
   const pendientes = discrepancias.filter((d) => d.estado === "PENDIENTE");
+  const resueltas = discrepancias.filter((d) => d.estado === "RESUELTA");
 
   return (
     <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col gap-4">
@@ -342,6 +349,96 @@ function PartidoCard({
           </div>
         </div>
       )}
+
+      {resueltas.length > 0 && (
+        <details className="border-t border-slate-100 dark:border-zinc-800 pt-4">
+          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-slate-400 select-none">
+            {resueltas.length} discrepancia{resueltas.length === 1 ? "" : "s"} resuelta
+            {resueltas.length === 1 ? "" : "s"}
+          </summary>
+          <div className="flex flex-col gap-2 mt-3">
+            {resueltas.map((d) => (
+              <DiscrepanciaResueltaRow
+                key={d.id}
+                partidoId={partido.id}
+                discrepancia={d}
+                arbitros={arbitros}
+                equipos={equipos}
+                jugadoresPorId={jugadoresPorId}
+              />
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** Descripción compacta de un evento de discrepancia (compartida por ambas filas). */
+function describirEventoDiscrepancia(
+  e: Discrepancia["eventoA"],
+  arbitros: Usuario[],
+  equipos: Equipo[],
+  jugadoresPorId: Map<string, Jugador>,
+): string {
+  const nombreArbitro = arbitros.find((a) => a.id === e.arbitroId)?.nombre ?? e.arbitroId;
+  const nombreEquipo = e.equipoId
+    ? (equipos.find((eq) => eq.id === e.equipoId)?.nombre ?? e.equipoId)
+    : "sin equipo";
+  // Finding 4 (HU-2.6 review): un par detectado siempre comparte tipoEvento
+  // y equipoId por construcción (ver detectarDiscrepancias) — jugadorId es
+  // lo único que puede distinguir a los dos eventos que el admin tiene que
+  // elegir entre sí. Mismo formato "#numero nombre" que MvpModal/ActionModal.
+  const jugador = e.jugadorId ? jugadoresPorId.get(e.jugadorId) : undefined;
+  const nombreJugador = jugador ? `#${jugador.numeroJersey} ${jugador.nombre}` : "sin jugador";
+  return `${e.tipoEvento} · ${nombreEquipo} · ${nombreJugador} · ${nombreArbitro} · ${new Date(e.timestamp).toLocaleTimeString("es-MX")}`;
+}
+
+function DiscrepanciaResueltaRow({
+  partidoId,
+  discrepancia,
+  arbitros,
+  equipos,
+  jugadoresPorId,
+}: {
+  partidoId: string;
+  discrepancia: Discrepancia;
+  arbitros: Usuario[];
+  equipos: Equipo[];
+  jugadoresPorId: Map<string, Jugador>;
+}) {
+  const resultado =
+    discrepancia.eventoDescartadoId === null
+      ? "Se mantuvieron ambos"
+      : discrepancia.eventoDescartadoId === discrepancia.eventoA.id
+        ? "Se descartó A"
+        : "Se descartó B";
+  const describir = (e: Discrepancia["eventoA"]) =>
+    describirEventoDiscrepancia(e, arbitros, equipos, jugadoresPorId);
+
+  return (
+    <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-bold">
+          {resultado}
+          {discrepancia.resolvedAt && (
+            <span className="font-normal text-slate-400">
+              {" · "}
+              {new Date(discrepancia.resolvedAt).toLocaleString("es-MX", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </span>
+          )}
+        </span>
+        <ActionForm action={reabrirDiscrepancia.bind(null, partidoId, discrepancia.id)}>
+          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-200 dark:bg-zinc-700">
+            Reabrir
+          </SubmitButton>
+        </ActionForm>
+      </div>
+      <p className="text-slate-500 dark:text-slate-400">A: {describir(discrepancia.eventoA)}</p>
+      <p className="text-slate-500 dark:text-slate-400">B: {describir(discrepancia.eventoB)}</p>
     </div>
   );
 }
@@ -359,21 +456,8 @@ function DiscrepanciaRow({
   equipos: Equipo[];
   jugadoresPorId: Map<string, Jugador>;
 }) {
-  const nombreArbitro = (id: string) => arbitros.find((a) => a.id === id)?.nombre ?? id;
-  const nombreEquipo = (id: string | null) =>
-    id ? (equipos.find((e) => e.id === id)?.nombre ?? id) : "sin equipo";
-  // Finding 4 (HU-2.6 review): un par detectado siempre comparte tipoEvento
-  // y equipoId por construcción (ver detectarDiscrepancias) — jugadorId es
-  // lo único que puede distinguir a los dos eventos que el admin tiene que
-  // elegir entre sí, y no se mostraba. Mismo formato "#numero nombre" que
-  // MvpModal/ActionModal.
-  const describirJugador = (jugadorId: string | null) => {
-    if (!jugadorId) return "sin jugador";
-    const jugador = jugadoresPorId.get(jugadorId);
-    return jugador ? `#${jugador.numeroJersey} ${jugador.nombre}` : "sin jugador";
-  };
-  const describirEvento = (e: (typeof discrepancia)["eventoA"]) =>
-    `${e.tipoEvento} · ${nombreEquipo(e.equipoId)} · ${describirJugador(e.jugadorId)} · ${nombreArbitro(e.arbitroId)} · ${new Date(e.timestamp).toLocaleTimeString("es-MX")}`;
+  const describirEvento = (e: Discrepancia["eventoA"]) =>
+    describirEventoDiscrepancia(e, arbitros, equipos, jugadoresPorId);
 
   return (
     <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex flex-col gap-3">

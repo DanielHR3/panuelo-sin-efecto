@@ -42,4 +42,17 @@ export class DiscrepanciasController {
       user,
     );
   }
+
+  @Patch(':discrepanciaId/reabrir')
+  @ApiOperation({
+    summary:
+      'Reabre una discrepancia ya resuelta: vuelve a PENDIENTE y reincorpora el evento descartado al marcador. Solo LIGA_ADMIN dueño o SUPERADMIN.',
+  })
+  reabrir(
+    @Param('partidoId') partidoId: string,
+    @Param('discrepanciaId') discrepanciaId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.discrepanciasService.reabrir(partidoId, discrepanciaId, user);
+  }
 }

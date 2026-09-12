@@ -110,6 +110,22 @@ export async function quitarArbitro(
   revalidatePath("/admin/partidos");
 }
 
+export async function reabrirDiscrepancia(
+  partidoId: string,
+  discrepanciaId: string,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  try {
+    await authedFetch(`/partidos/${partidoId}/discrepancias/${discrepanciaId}/reabrir`, {
+      method: "PATCH",
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "No se pudo reabrir la discrepancia" };
+  }
+  revalidatePath("/admin/partidos");
+}
+
 export async function resolverDiscrepancia(
   partidoId: string,
   discrepanciaId: string,
