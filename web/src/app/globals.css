@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Tailwind v4 usa prefers-color-scheme por defecto para las utilidades
+ * `dark:`. Esta app decide el tema con next-themes (clase en <html>), así
+ * que hay que decirle a Tailwind que responda a esa clase en vez de al
+ * media query — si no, todo `dark:...` ignora al usuario y sigue al SO.
+ * https://tailwindcss.com/docs/dark-mode */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;

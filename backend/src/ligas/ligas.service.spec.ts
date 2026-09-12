@@ -3,14 +3,18 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { LigasService } from './ligas.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { OwnershipService } from '../common/ownership.service';
 
 const mockPrisma = {
   liga: {
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
   },
 };
+const mockOwnership = { assertCanManageLiga: jest.fn() };
 
 describe('LigasService', () => {
   let service: LigasService;
@@ -21,6 +25,7 @@ describe('LigasService', () => {
       providers: [
         LigasService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: OwnershipService, useValue: mockOwnership },
       ],
     }).compile();
 
@@ -94,6 +99,39 @@ describe('LigasService', () => {
 
       await expect(service.findOne('inexistente')).rejects.toBeInstanceOf(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('valida la propiedad antes de renombrar', async () => {
+      mockPrisma.liga.update.mockResolvedValueOnce({ id: 'l1' });
+      await service.update('l1', { nombre: 'Nuevo nombre' }, arbitro);
+      expect(mockOwnership.assertCanManageLiga).toHaveBeenCalledWith(
+        'l1',
+        arbitro,
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('valida la propiedad y borra', async () => {
+      mockPrisma.liga.delete.mockResolvedValueOnce({ id: 'l1' });
+      await expect(service.remove('l1', arbitro)).resolves.toEqual({
+        id: 'l1',
+        deleted: true,
+      });
+    });
+
+    it('traduce P2003/P2014 (categorías dependientes) a BadRequestException', async () => {
+      mockPrisma.liga.delete.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('FK', {
+          code: 'P2003',
+          clientVersion: 'test',
+        }),
+      );
+      await expect(service.remove('l1', arbitro)).rejects.toBeInstanceOf(
+        BadRequestException,
       );
     });
   });

@@ -1,7 +1,16 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LigasService } from './ligas.service';
 import { CreateLigaDto } from './dto/create-liga.dto';
+import { UpdateLigaDto } from './dto/update-liga.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
@@ -34,5 +43,25 @@ export class LigasController {
   @ApiOperation({ summary: 'Detalle de una liga' })
   findOne(@Param('id') id: string) {
     return this.ligasService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles('SUPERADMIN', 'LIGA_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Renombra una liga' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateLigaDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.ligasService.update(id, dto, user);
+  }
+
+  @Delete(':id')
+  @Roles('SUPERADMIN', 'LIGA_ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Elimina una liga (debe estar sin categorías)' })
+  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.ligasService.remove(id, user);
   }
 }

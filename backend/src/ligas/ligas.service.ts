@@ -5,12 +5,17 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateLigaDto } from './dto/create-liga.dto';
+import { UpdateLigaDto } from './dto/update-liga.dto';
 
 @Injectable()
 export class LigasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly ownership: OwnershipService,
+  ) {}
 
   async create(createLigaDto: CreateLigaDto, currentUser: AuthUser) {
     // Solo un SUPERADMIN puede crear una liga a nombre de otro usuario.
@@ -49,5 +54,28 @@ export class LigasService {
     });
     if (!liga) throw new NotFoundException(`Liga con ID ${id} no encontrada`);
     return liga;
+  }
+
+  async update(id: string, dto: UpdateLigaDto, user: AuthUser) {
+    await this.ownership.assertCanManageLiga(id, user);
+    return this.prisma.liga.update({ where: { id }, data: dto });
+  }
+
+  async remove(id: string, user: AuthUser) {
+    await this.ownership.assertCanManageLiga(id, user);
+    try {
+      await this.prisma.liga.delete({ where: { id } });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2003' || error.code === 'P2014')
+      ) {
+        throw new BadRequestException(
+          'No se puede eliminar la liga: primero elimina sus categorías',
+        );
+      }
+      throw error;
+    }
+    return { id, deleted: true };
   }
 }

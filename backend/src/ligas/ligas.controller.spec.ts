@@ -6,6 +6,8 @@ const mockLigasService = {
   create: jest.fn(),
   findAll: jest.fn(),
   findOne: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
 };
 
 describe('LigasController', () => {
@@ -35,5 +37,11 @@ describe('LigasController', () => {
   it('delega findOne() en el servicio con el id de la ruta', () => {
     void controller.findOne('liga-123');
     expect(mockLigasService.findOne).toHaveBeenCalledWith('liga-123');
+  });
+
+  it('delega remove() en el servicio con el id y el usuario', () => {
+    const user = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' as const };
+    void controller.remove('liga-123', user);
+    expect(mockLigasService.remove).toHaveBeenCalledWith('liga-123', user);
   });
 });

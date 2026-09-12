@@ -145,4 +145,26 @@ describe('PartidosService', () => {
       NotFoundException,
     );
   });
+
+  it('findOne() incluye las asignaciones con los datos públicos del árbitro', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
+    await service.findOne('p1');
+    const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
+      { include: { asignaciones: unknown } },
+    ];
+    expect(arg.include.asignaciones).toEqual({
+      include: { arbitro: { select: { id: true, nombre: true, email: true } } },
+    });
+  });
+
+  it('findAllByCategoria() incluye las asignaciones con los datos públicos del árbitro', async () => {
+    mockPrisma.partido.findMany.mockResolvedValueOnce([]);
+    await service.findAllByCategoria('cat-1');
+    const [arg] = mockPrisma.partido.findMany.mock.calls[0] as [
+      { include: { asignaciones: unknown } },
+    ];
+    expect(arg.include.asignaciones).toEqual({
+      include: { arbitro: { select: { id: true, nombre: true, email: true } } },
+    });
+  });
 });

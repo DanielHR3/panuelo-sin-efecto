@@ -6,6 +6,7 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 const mockUsuariosService = {
   create: jest.fn(),
   findById: jest.fn(),
+  findAll: jest.fn(),
 };
 
 describe('UsuariosController', () => {
@@ -29,5 +30,10 @@ describe('UsuariosController', () => {
     const user: AuthUser = { sub: 'u1', email: 'a@b.c', rol: 'ARBITRO' };
     void controller.me(user);
     expect(mockUsuariosService.findById).toHaveBeenCalledWith('u1');
+  });
+
+  it('findAll() delega el filtro de rol de la query', () => {
+    void controller.findAll({ rol: 'ARBITRO' });
+    expect(mockUsuariosService.findAll).toHaveBeenCalledWith('ARBITRO');
   });
 });
