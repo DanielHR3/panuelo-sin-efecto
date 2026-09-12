@@ -1,8 +1,15 @@
 "use client";
 
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { useTheme } from "next-themes";
 import { apiFetch } from "@/lib/api";
+import { calcularMarcador } from "@/lib/marcador";
+import {
+  contarPendientes,
+  eliminarPendiente,
+  encolarEvento,
+  listarPendientes,
+} from "@/lib/offline-queue";
 import type {
   EstadoPartido,
   GameEvent,
@@ -22,14 +29,27 @@ interface RegistrarEventoResponse {
   duplicado: boolean;
 }
 
+type EventoPayload = { tipoEvento: TipoEvento; equipoId?: string; jugadorId?: string };
+
+/**
+ * `fetch` lanza TypeError cuando la petición ni siquiera pudo salir (sin
+ * conexión, DNS caído, etc.) — a diferencia de un error HTTP, donde sí hubo
+ * respuesta del servidor. Esa distinción es la que decide si el evento se
+ * encola para reintentar o si se le muestra el error al árbitro tal cual.
+ */
+function esErrorDeRed(e: unknown): boolean {
+  return e instanceof TypeError;
+}
+
 async function postEvento(
   partidoId: string,
-  payload: { tipoEvento: TipoEvento; equipoId?: string; jugadorId?: string },
+  payload: EventoPayload,
+  clientEventId: string,
 ): Promise<RegistrarEventoResponse> {
   const res = await fetch(`/api/proxy/partidos/${partidoId}/eventos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, clientEventId: crypto.randomUUID() }),
+    body: JSON.stringify({ ...payload, clientEventId }),
   });
   const data = (await res.json().catch(() => ({}))) as Partial<RegistrarEventoResponse> & {
     message?: string | string[];
@@ -64,6 +84,7 @@ export default function ScoreboardClient({
   const [flow, dispatch] = useReducer(flowReducer, CLOSED);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendientesCount, setPendientesCount] = useState(0);
 
   const vibrate = useHaptics();
   const { resolvedTheme, setTheme } = useTheme();
@@ -79,28 +100,123 @@ export default function ScoreboardClient({
   const equipoIdDe = (team: TeamSide) => (team === "local" ? equipoLocal.id : equipoVisitante.id);
   const lastEvent = eventos.length > 0 ? eventos[eventos.length - 1] : null;
 
-  const ejecutar = async (payload: { tipoEvento: TipoEvento; equipoId?: string; jugadorId?: string }) => {
+  /**
+   * Reintenta, en orden, los eventos que quedaron sin sincronizar. Se corta
+   * en el primero que vuelva a fallar por red (seguimos sin conexión); un
+   * error real del servidor (p. ej. el partido ya finalizó) descarta ese
+   * pendiente en vez de dejarlo atascado reintentando para siempre.
+   */
+  /**
+   * Trae el marcador y el estado reales del backend. Se usa para corregir
+   * el cálculo optimista si un evento pendiente termina descartado (ver
+   * drenarCola): sin esto, la pantalla podía quedar mostrando puntos que el
+   * servidor nunca aceptó.
+   */
+  const refrescarEstadoYMarcador = async () => {
+    try {
+      const [fresco, m] = await Promise.all([
+        apiFetch<{ estado: EstadoPartido }>(`/partidos/${partido.id}`),
+        apiFetch<Marcador>(`/partidos/${partido.id}/marcador`),
+      ]);
+      setEstado(fresco.estado);
+      setMarcador(m);
+    } catch {
+      // sin conexión todavía; se reintenta en el próximo drenarCola/refresh
+    }
+  };
+
+  const drenarCola = async () => {
+    const pendientes = await listarPendientes(partido.id);
+    let huboDescartes = false;
+    for (const item of pendientes) {
+      try {
+        // Solo los campos que acepta RegistrarEventoDto: el registro guardado
+        // en IndexedDB también lleva partidoId/createdAt para uso interno de
+        // la cola, y el backend (forbidNonWhitelisted) rechaza cualquier
+        // campo extra.
+        const payload: EventoPayload = {
+          tipoEvento: item.tipoEvento,
+          ...(item.equipoId ? { equipoId: item.equipoId } : {}),
+          ...(item.jugadorId ? { jugadorId: item.jugadorId } : {}),
+        };
+        const { evento, marcador: m } = await postEvento(partido.id, payload, item.clientEventId);
+        await eliminarPendiente(item.clientEventId);
+        setMarcador(m);
+        setEventos((prev) => prev.map((e) => (e.id === item.clientEventId ? evento : e)));
+        setPendientesCount((n) => Math.max(0, n - 1));
+      } catch (e) {
+        if (esErrorDeRed(e)) break;
+        // Error real del servidor (p. ej. el partido no había arrancado con
+        // INICIO_MITAD): no tiene sentido reintentarlo, se descarta. El
+        // evento optimista se retira de la bitácora local — nunca fue real.
+        await eliminarPendiente(item.clientEventId);
+        setPendientesCount((n) => Math.max(0, n - 1));
+        setEventos((prev) => prev.filter((ev) => ev.id !== item.clientEventId));
+        huboDescartes = true;
+        setError(
+          `Un evento pendiente no se pudo sincronizar y se descartó: ${
+            e instanceof Error ? e.message : "error desconocido"
+          }`,
+        );
+      }
+    }
+    if (huboDescartes) await refrescarEstadoYMarcador();
+  };
+
+  useEffect(() => {
+    void contarPendientes(partido.id).then(setPendientesCount);
+    // Sincroniza con IndexedDB (un sistema externo) al montar: si el árbitro
+    // cerró la app con eventos sin enviar de una sesión offline anterior, se
+    // reintentan ya mismo en vez de esperar a la próxima acción.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void drenarCola();
+    window.addEventListener("online", drenarCola);
+    return () => window.removeEventListener("online", drenarCola);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar; drenarCola cierra sobre partido.id, que no cambia
+  }, []);
+
+  const ejecutar = async (payload: EventoPayload) => {
     setPending(true);
     setError(null);
+    const clientEventId = crypto.randomUUID();
     try {
-      const { evento, marcador: nuevoMarcador, duplicado } = await postEvento(partido.id, payload);
+      if (pendientesCount > 0) await drenarCola();
+      const { evento, marcador: nuevoMarcador, duplicado } = await postEvento(
+        partido.id,
+        payload,
+        clientEventId,
+      );
       setMarcador(nuevoMarcador);
       if (!duplicado) setEventos((prev) => [...prev, evento]);
       return evento;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo registrar el evento");
-      return null;
+      if (!esErrorDeRed(e)) {
+        setError(e instanceof Error ? e.message : "No se pudo registrar el evento");
+        return null;
+      }
+      // Sin conexión: se encola y se aplica optimista. calcularMarcador es
+      // el mismo algoritmo que el backend (ver lib/marcador.ts) para que el
+      // número en pantalla no se desvíe hasta que sincronice.
+      const eventoOptimista: GameEvent = {
+        id: clientEventId,
+        clientEventId,
+        timestamp: new Date().toISOString(),
+        partidoId: partido.id,
+        arbitroId: "",
+        tipoEvento: payload.tipoEvento,
+        equipoId: payload.equipoId ?? null,
+        jugadorId: payload.jugadorId ?? null,
+      };
+      await encolarEvento({ clientEventId, partidoId: partido.id, ...payload, createdAt: Date.now() });
+      setEventos((prev) => {
+        const next = [...prev, eventoOptimista];
+        setMarcador(calcularMarcador(next, equipoLocal.id, equipoVisitante.id));
+        return next;
+      });
+      setPendientesCount((n) => n + 1);
+      return eventoOptimista;
     } finally {
       setPending(false);
-    }
-  };
-
-  const refrescarEstado = async () => {
-    try {
-      const fresco = await apiFetch<{ estado: EstadoPartido }>(`/partidos/${partido.id}`);
-      setEstado(fresco.estado);
-    } catch {
-      // si falla el refresco, el usuario sigue viendo el estado anterior; no es crítico
     }
   };
 
@@ -174,7 +290,7 @@ export default function ScoreboardClient({
     vibrate([100, 50, 100]);
     halfTimer.pause();
     const evento = await ejecutar({ tipoEvento: "FIN_MITAD" });
-    if (evento) await refrescarEstado();
+    if (evento) await refrescarEstadoYMarcador();
   };
 
   const handleResetTimer = () => {
@@ -264,6 +380,13 @@ export default function ScoreboardClient({
       {error && (
         <div role="alert" className="text-center text-sm font-semibold text-red-500 bg-red-500/10 rounded-xl py-2">
           {error}
+        </div>
+      )}
+
+      {pendientesCount > 0 && (
+        <div className="text-center text-sm font-semibold text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 rounded-xl py-2">
+          📡 {pendientesCount} evento{pendientesCount === 1 ? "" : "s"} pendiente
+          {pendientesCount === 1 ? "" : "s"} de sincronizar
         </div>
       )}
 

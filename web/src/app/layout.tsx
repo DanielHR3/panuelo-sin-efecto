@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { ServiceWorkerRegister } from "./sw-register";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -11,7 +12,8 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Pañuelo sin efecto",
   description: "App de Arbitraje Inteligente",
-  manifest: "/manifest.json",
+  // El manifest lo sirve app/manifest.ts (file convention de Next):
+  // se enlaza solo, no hace falta declararlo aquí.
 };
 
 export const viewport: Viewport = {
@@ -33,6 +35,7 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={`${outfit.variable} antialiased min-h-screen flex flex-col`}>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
