@@ -2,10 +2,16 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Cabeceras de seguridad HTTP estándar (X-Content-Type-Options, HSTS,
+  // X-Frame-Options, etc.). CSP se apaga: su valor por defecto bloquea los
+  // scripts/estilos inline que usa la UI de Swagger en /docs.
+  app.use(helmet({ contentSecurityPolicy: false }));
 
   app.useGlobalPipes(
     new ValidationPipe({
