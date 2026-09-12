@@ -135,6 +135,15 @@ describe('PublicoService', () => {
       expect(ligas).toEqual([]);
       expect(mockPrisma.eventoPartido.findMany).not.toHaveBeenCalled();
     });
+
+    it('excluye las ligas RAPIDA de los árbitros invitados (HU-2.7)', async () => {
+      mockPrisma.liga.findMany.mockResolvedValueOnce([]);
+      await service.resumen();
+      const [arg] = mockPrisma.liga.findMany.mock.calls[0] as [
+        { where: { tipo: string } },
+      ];
+      expect(arg.where).toEqual({ tipo: 'LIGA' });
+    });
   });
 
   describe('jugador', () => {

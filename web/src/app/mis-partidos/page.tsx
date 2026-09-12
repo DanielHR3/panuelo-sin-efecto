@@ -34,6 +34,13 @@ export default async function MisPartidosPage() {
         </Link>
       </header>
 
+      <Link
+        href="/arbitrar"
+        className="rounded-2xl p-4 bg-panuelo text-[#1a1600] font-black text-lg text-center shadow-lg active:scale-[0.98] transition-transform"
+      >
+        + Partido rápido
+      </Link>
+
       {partidos.length === 0 ? (
         <div className="glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center gap-2 py-16">
           <span className="text-5xl opacity-50">🏈</span>

@@ -63,6 +63,9 @@ export class PublicoService {
   /** Todas las ligas con la tabla, marcadores y líderes de cada categoría. */
   async resumen() {
     const ligas = await this.prisma.liga.findMany({
+      // Las ligas RAPIDA son el contenedor personal de un árbitro invitado
+      // (HU-2.7): sus partidos se comparten por enlace, no en la portada.
+      where: { tipo: 'LIGA' },
       orderBy: { nombre: 'asc' },
       select: {
         id: true,

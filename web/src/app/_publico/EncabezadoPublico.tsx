@@ -34,12 +34,17 @@ export async function EncabezadoPublico() {
             )}
           </>
         ) : (
-          <Link
-            href="/login"
-            className="px-4 py-2 rounded-xl bg-panuelo text-[#1a1600] shadow-sm active:scale-95 transition-transform"
-          >
-            Entrar
-          </Link>
+          <>
+            <Link href="/login" className="px-3 py-2 rounded-xl hover:bg-foreground/10">
+              Entrar
+            </Link>
+            <Link
+              href="/arbitrar"
+              className="px-4 py-2 rounded-xl bg-panuelo text-[#1a1600] shadow-sm active:scale-95 transition-transform"
+            >
+              Arbitrar
+            </Link>
+          </>
         )}
       </nav>
     </header>

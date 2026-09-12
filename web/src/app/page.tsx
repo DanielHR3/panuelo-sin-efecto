@@ -49,12 +49,15 @@ export default async function LandingPage() {
                 aparecen los resultados, la tabla de posiciones y las estadísticas de cada
                 jugador en cuanto termina el partido.
               </p>
-              <Link
-                href="/login"
-                className="self-start px-5 py-3 rounded-xl bg-panuelo text-[#1a1600] font-bold shadow-lg active:scale-95 transition-transform"
-              >
-                Entrar a arbitrar
-              </Link>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="/arbitrar"
+                  className="px-5 py-3 rounded-xl bg-panuelo text-[#1a1600] font-bold shadow-lg active:scale-95 transition-transform"
+                >
+                  Arbitrar un partido ahora
+                </Link>
+                <span className="text-sm opacity-80">Sin cuenta ni contraseña.</span>
+              </div>
             </div>
           )}
         </div>
@@ -73,9 +76,14 @@ export default async function LandingPage() {
       <footer className="border-t border-foreground/10">
         <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-3 text-sm opacity-70">
           <span>Pañuelo sin efecto · arbitraje de flag football</span>
-          <Link href="/login" className="font-semibold hover:underline">
-            ¿Eres árbitro o diriges una liga? Entra aquí
-          </Link>
+          <span className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link href="/arbitrar" className="font-semibold hover:underline">
+              Arbitrar sin cuenta
+            </Link>
+            <Link href="/login" className="font-semibold hover:underline">
+              ¿Diriges una liga? Entra aquí
+            </Link>
+          </span>
         </div>
       </footer>
     </div>

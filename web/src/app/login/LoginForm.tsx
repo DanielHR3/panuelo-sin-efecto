@@ -93,7 +93,10 @@ export default function LoginForm() {
       <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-col gap-1.5 border-t border-slate-200 dark:border-zinc-800 pt-4">
         <p>
           <span className="font-semibold text-slate-700 dark:text-slate-300">Árbitro:</span> usa el correo y
-          la contraseña que te dio el administrador de tu liga. Verás tus partidos asignados.
+          la contraseña que te dio el administrador de tu liga. Verás tus partidos asignados.{" "}
+          <Link href="/arbitrar" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+            ¿Sin cuenta? Arbitra un partido sin registrarte.
+          </Link>
         </p>
         <p>
           <span className="font-semibold text-slate-700 dark:text-slate-300">Administrador:</span> entras al
