@@ -4,6 +4,6 @@ import { LigasService } from './ligas.service';
 
 @Module({
   controllers: [LigasController],
-  providers: [LigasService]
+  providers: [LigasService],
 })
 export class LigasModule {}
