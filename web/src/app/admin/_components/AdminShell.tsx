@@ -2,9 +2,41 @@
 
 import { ReactNode, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import type { SessionUser } from "@/lib/session";
 
-export default function AdminShell({ children }: { children: ReactNode }) {
+const ROL_LABEL: Record<SessionUser["rol"], string> = {
+  SUPERADMIN: "Super Administrador",
+  LIGA_ADMIN: "Administrador de Liga",
+  ARBITRO: "Árbitro",
+};
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/);
+  return ((partes[0]?.[0] ?? "") + (partes[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
+export default function AdminShell({
+  children,
+  nombre,
+  email,
+  rol,
+}: {
+  children: ReactNode;
+  nombre: string;
+  email: string;
+  rol: SessionUser["rol"];
+}) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const router = useRouter();
+  const { theme, setTheme, resolvedTheme } = useTheme();
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-slate-100 font-sans">
@@ -30,7 +62,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               Panel Admin
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-widest font-bold">
-              Super Administrador
+              {ROL_LABEL[rol]}
             </p>
           </div>
           <button
@@ -52,15 +84,32 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </nav>
 
         {/* Perfil del Administrador (Tu Cuenta) */}
-        <div className="p-4 border-t border-slate-200 dark:border-zinc-800">
+        <div className="p-4 border-t border-slate-200 dark:border-zinc-800 flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold">
-              DH
+              {iniciales(nombre)}
             </div>
-            <div className="overflow-hidden">
-              <p className="font-semibold text-sm truncate">Daniel H.</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">danielhrubio3@gmail.com</p>
+            <div className="overflow-hidden flex-1">
+              <p className="font-semibold text-sm truncate">{nombre}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{email}</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-zinc-800 text-xs font-semibold"
+              aria-label="Cambiar tema"
+            >
+              {theme === "system" ? "🖥️ Sistema" : resolvedTheme === "dark" ? "🌙 Oscuro" : "☀️ Claro"}
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex-1 p-2 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold"
+            >
+              Cerrar sesión
+            </button>
           </div>
         </div>
       </aside>

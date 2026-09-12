@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -27,9 +28,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark">
+    // suppressHydrationWarning: next-themes fija la clase "dark" antes de
+    // hidratar (inline script) para no forzar el modo oscuro ni parpadear.
+    <html lang="es" suppressHydrationWarning>
       <body className={`${outfit.variable} antialiased min-h-screen flex flex-col`}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
