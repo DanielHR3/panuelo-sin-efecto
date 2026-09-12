@@ -3,7 +3,7 @@
 ## Stack Tecnológico
 - NestJS.
 - Prisma ORM.
-- SQLite (Desarrollo) / PostgreSQL (Producción).
+- PostgreSQL en todos los entornos (en desarrollo, vía `docker compose up -d` desde la raíz; ver `backend/.env.example`).
 - TypeScript.
 
 ## Reglas de Arquitectura y Patrones

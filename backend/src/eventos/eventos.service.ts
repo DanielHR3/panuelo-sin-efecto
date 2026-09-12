@@ -81,13 +81,15 @@ export class EventosService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // Lectura FRESCA de estado, dentro de la transacción (HU-2.6,
-        // finding 2). SQLite serializa las transacciones de escritura: una
-        // transacción que arranca después de que otra ya confirmó ve el
-        // estado que esa otra dejó, así que dos "fin de partido" casi
-        // simultáneos ya no pueden finalizar/detectar dos veces — la
-        // segunda ve FINALIZADO y es rechazada como cualquier evento
+        // Serialización por partido (HU-2.6, finding 2). En PostgreSQL con
+        // READ COMMITTED dos transacciones concurrentes NO se serializan
+        // solas (SQLite sí lo hacía): ambas podrían leer "EN_CURSO" y
+        // finalizar/detectar dos veces. El bloqueo de fila hace que la
+        // segunda espere a que la primera confirme, y su lectura fresca de
+        // abajo vea ya FINALIZADO — y se rechace como cualquier evento
         // genuinamente tardío.
+        await tx.$executeRaw`SELECT "id" FROM "Partido" WHERE "id" = ${partidoId} FOR UPDATE`;
+
         const estadoActual = await tx.partido.findUniqueOrThrow({
           where: { id: partidoId },
           select: { estado: true },
@@ -152,30 +154,21 @@ export class EventosService {
           const vigentes = filtrarEventosVigentes(todos);
           const pares = detectarDiscrepancias(vigentes);
           if (pares.length > 0) {
-            try {
-              await tx.discrepanciaEvento.createMany({
-                data: pares.map((p) => ({
-                  partidoId,
-                  eventoAId: p.eventoAId,
-                  eventoBId: p.eventoBId,
-                  estado: 'PENDIENTE',
-                })),
-              });
-            } catch (err) {
-              // Backstop de la restricción única @@unique([eventoAId,
-              // eventoBId]) del schema, además de la lectura fresca de
-              // arriba: si por lo que sea este mismo par ya existiera (no
-              // debería, la lectura fresca ya cierra la carrera del
-              // finding 2), se trata como "ya detectado" en vez de tirar
-              // toda la transacción — `skipDuplicates` de Prisma no está
-              // disponible en SQLite, así que el no-op se hace a mano.
-              if (!(
-                err instanceof Prisma.PrismaClientKnownRequestError &&
-                err.code === 'P2002'
-              )) {
-                throw err;
-              }
-            }
+            // Backstop de la restricción única @@unique([eventoAId,
+            // eventoBId]) del schema, además del bloqueo de fila de arriba:
+            // si por lo que sea este mismo par ya existiera, se ignora en
+            // la propia base (ON CONFLICT DO NOTHING). Un catch de P2002
+            // no serviría: en PostgreSQL cualquier error dentro de la
+            // transacción la deja abortada y el resto fallaría igual.
+            await tx.discrepanciaEvento.createMany({
+              data: pares.map((p) => ({
+                partidoId,
+                eventoAId: p.eventoAId,
+                eventoBId: p.eventoBId,
+                estado: 'PENDIENTE',
+              })),
+              skipDuplicates: true,
+            });
           }
         }
 
@@ -271,11 +264,12 @@ export class EventosService {
    * Recibe `tx` (el cliente de la transacción) y `estadoActual` ya leído
    * fresco DESDE DENTRO de esa transacción (HU-2.6, finding 2) — nunca del
    * `this.prisma` exterior. Dos árbitros pulsando "fin de partido" casi al
-   * mismo tiempo generan dos transacciones; SQLite las serializa, así que
-   * la segunda en arrancar ve aquí el `estado`/conteo de FIN_MITAD que la
-   * primera ya confirmó, y esta función la trata como un evento tardío
-   * normal (mismo error que cualquier evento después de FINALIZADO) en vez
-   * de volver a finalizar y volver a disparar la detección de
+   * mismo tiempo generan dos transacciones; el bloqueo de fila del partido
+   * (SELECT ... FOR UPDATE en `registrar`) las serializa, así que la
+   * segunda en obtener el bloqueo ve aquí el `estado`/conteo de FIN_MITAD
+   * que la primera ya confirmó, y esta función la trata como un evento
+   * tardío normal (mismo error que cualquier evento después de FINALIZADO)
+   * en vez de volver a finalizar y volver a disparar la detección de
    * discrepancias.
    */
   private async resolverTransicionEstado(

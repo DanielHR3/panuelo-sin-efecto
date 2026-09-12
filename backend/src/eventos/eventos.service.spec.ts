@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { EventosService } from './eventos.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
@@ -41,6 +40,7 @@ function partidoBase(estado: string) {
 }
 
 const mockTx = {
+  $executeRaw: jest.fn(),
   eventoPartido: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   partido: { update: jest.fn(), findUniqueOrThrow: jest.fn() },
   discrepanciaEvento: { createMany: jest.fn() },
@@ -62,6 +62,7 @@ describe('EventosService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockTx.$executeRaw.mockResolvedValue(1);
     mockTx.eventoPartido.create.mockResolvedValue({ id: 'ev1' });
     mockTx.eventoPartido.findMany.mockResolvedValue([]);
     mockTx.eventoPartido.count.mockResolvedValue(0);
@@ -311,16 +312,42 @@ describe('EventosService', () => {
           estado: 'PENDIENTE',
         },
       ],
+      skipDuplicates: true,
     });
   });
 
-  it('un P2002 al crear discrepancias (backstop del @@unique) se trata como ya detectado, no como error', async () => {
-    // SQLite no soporta `skipDuplicates` en createMany, así que el backstop
-    // de la restricción única @@unique([eventoAId, eventoBId]) se hace a
-    // mano: si otra transacción ya insertó exactamente este par (no debería
-    // pasar gracias a la lectura fresca del finding 2, pero es el
-    // respaldo), no debe tirar la transacción completa ni la respuesta al
-    // árbitro que la disparó.
+  it('bloquea la fila del partido (FOR UPDATE) antes de leer el estado fresco dentro de la transacción', async () => {
+    // PostgreSQL no serializa las transacciones de escritura como SQLite:
+    // con READ COMMITTED dos transacciones concurrentes pueden leer el
+    // mismo estado "EN_CURSO" y finalizar el partido dos veces. El bloqueo
+    // de fila es lo que convierte la lectura fresca del finding 2 en una
+    // lectura realmente serializada por partido.
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(
+      partidoBase('EN_CURSO'),
+    );
+    await service.registrar(
+      'p1',
+      { tipoEvento: 'TD', equipoId: LOCAL_ID },
+      arbitroAsignado,
+    );
+
+    expect(mockTx.$executeRaw).toHaveBeenCalledTimes(1);
+    const sql = (mockTx.$executeRaw.mock.calls[0] as [TemplateStringsArray])[0]
+      .join('?')
+      .toUpperCase();
+    expect(sql).toContain('FOR UPDATE');
+    expect(sql).toContain('"PARTIDO"');
+    const lockOrder = mockTx.$executeRaw.mock.invocationCallOrder[0];
+    const readOrder =
+      mockTx.partido.findUniqueOrThrow.mock.invocationCallOrder[0];
+    expect(lockOrder).toBeLessThan(readOrder);
+  });
+
+  it('crea las discrepancias con skipDuplicates para que el @@unique sea un no-op y no aborte la transacción', async () => {
+    // En PostgreSQL cualquier error dentro de la transacción la deja en
+    // estado abortado: un catch de P2002 "a mano" ya no sirve como
+    // backstop, porque el resto de la transacción fallaría igual. El
+    // no-op tiene que pedirse a la base (ON CONFLICT DO NOTHING).
     const partidoDosArbitros = {
       ...partidoBase('EN_CURSO'),
       asignaciones: [{ arbitroId: 'ref-1' }, { arbitroId: 'ref-2' }],
@@ -343,16 +370,13 @@ describe('EventosService', () => {
         timestamp: new Date('2026-09-20T18:00:05.000Z'),
       },
     ]);
-    mockTx.discrepanciaEvento.createMany.mockRejectedValueOnce(
-      new Prisma.PrismaClientKnownRequestError('unique constraint', {
-        code: 'P2002',
-        clientVersion: 'test',
-      }),
-    );
 
-    await expect(
-      service.registrar('p1', { tipoEvento: 'FIN_MITAD' }, arbitroAsignado),
-    ).resolves.toBeDefined();
+    await service.registrar('p1', { tipoEvento: 'FIN_MITAD' }, arbitroAsignado);
+
+    const [arg] = mockTx.discrepanciaEvento.createMany.mock.calls[0] as [
+      { skipDuplicates?: boolean },
+    ];
+    expect(arg.skipDuplicates).toBe(true);
   });
 
   it('no crea discrepancias si solo hay un árbitro asignado', async () => {

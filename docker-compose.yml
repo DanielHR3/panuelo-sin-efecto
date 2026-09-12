@@ -1,0 +1,24 @@
+# Base de datos local para desarrollo. Levantar con `docker compose up -d`.
+# La API (backend/) y la web (web/) se corren fuera de Docker con `npm run
+# start:dev` / `npm run dev`; solo PostgreSQL vive en contenedor.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: panuelo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: panuelo
+      POSTGRES_PASSWORD: panuelo
+      POSTGRES_DB: panuelo
+    ports:
+      - "5433:5432"
+    volumes:
+      - panuelo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U panuelo -d panuelo"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  panuelo-db-data:

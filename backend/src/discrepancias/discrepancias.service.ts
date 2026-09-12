@@ -66,6 +66,11 @@ export class DiscrepanciasService {
           : null;
 
     return this.prisma.$transaction(async (tx) => {
+      // Mismo bloqueo por partido que eventos.service.registrar: el
+      // recálculo del marcador de abajo compite con cualquier evento que
+      // llegue en paralelo por la misma caché denormalizada.
+      await tx.$executeRaw`SELECT "id" FROM "Partido" WHERE "id" = ${partidoId} FOR UPDATE`;
+
       if (eventoDescartadoId) {
         await tx.eventoPartido.update({
           where: { id: eventoDescartadoId },

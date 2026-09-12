@@ -1,3 +1,6 @@
+// Carga .env igual que main.ts, para que `npx prisma db seed` lea
+// SEED_SUPERADMIN_PASSWORD y DATABASE_URL sin exportarlas a mano.
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/common/hashing';
 

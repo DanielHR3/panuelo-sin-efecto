@@ -10,6 +10,7 @@ const LOCAL_ID = 'equipo-local';
 const VISITA_ID = 'equipo-visitante';
 
 const mockTx = {
+  $executeRaw: jest.fn(),
   eventoPartido: { update: jest.fn(), findMany: jest.fn() },
   partido: { findUniqueOrThrow: jest.fn(), update: jest.fn() },
   discrepanciaEvento: { update: jest.fn() },
@@ -40,6 +41,7 @@ describe('DiscrepanciasService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockTx.$executeRaw.mockResolvedValue(1);
     mockTx.partido.findUniqueOrThrow.mockResolvedValue({
       equipoLocalId: LOCAL_ID,
       equipoVisitanteId: VISITA_ID,
@@ -100,6 +102,28 @@ describe('DiscrepanciasService', () => {
       await expect(
         service.resolver('p1', 'd1', { accion: 'MANTENER_AMBOS' }, admin),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('bloquea la fila del partido (FOR UPDATE) antes de recalcular el marcador', async () => {
+      // El recálculo del marcador compite con eventos.service.registrar por
+      // la misma caché denormalizada: el mismo bloqueo por partido evita que
+      // un evento tardío y una resolución pisen el marcador entre sí.
+      mockPrisma.discrepanciaEvento.findUnique.mockResolvedValueOnce(
+        discrepanciaPendiente(),
+      );
+      await service.resolver('p1', 'd1', { accion: 'DESCARTAR_A' }, admin);
+
+      expect(mockTx.$executeRaw).toHaveBeenCalledTimes(1);
+      const sql = (
+        mockTx.$executeRaw.mock.calls[0] as [TemplateStringsArray]
+      )[0]
+        .join('?')
+        .toUpperCase();
+      expect(sql).toContain('FOR UPDATE');
+      const lockOrder = mockTx.$executeRaw.mock.invocationCallOrder[0];
+      const updateOrder =
+        mockTx.eventoPartido.update.mock.invocationCallOrder[0];
+      expect(lockOrder).toBeLessThan(updateOrder);
     });
 
     it('DESCARTAR_A marca el eventoA como descartado, recalcula el marcador y cierra la discrepancia', async () => {
