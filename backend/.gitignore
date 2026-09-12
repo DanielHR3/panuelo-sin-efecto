@@ -1,5 +1,13 @@
 node_modules
-# Keep environment variables out of version control
+
+# Build output
+/dist
+
+# Keep environment variables out of version control (se versiona .env.example)
 .env
 
 /generated/prisma
+
+# SQLite dev databases must not be committed (contain local/seeded data)
+*.db
+*.db-journal
