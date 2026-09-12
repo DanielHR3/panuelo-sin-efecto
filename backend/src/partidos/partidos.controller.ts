@@ -43,10 +43,21 @@ export class PartidosController {
     return this.partidosService.findAllByCategoria(categoriaId);
   }
 
+  @Get('partidos/asignados')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Partidos donde el usuario autenticado es árbitro asignado',
+  })
+  findAsignados(@CurrentUser() user: AuthUser) {
+    // Debe registrarse antes de "partidos/:id" para que Nest no confunda
+    // "asignados" con un :id.
+    return this.partidosService.findAsignados(user.sub);
+  }
+
   @Public()
   @Get('partidos/:id')
   @ApiOperation({
-    summary: 'Detalle de un partido (equipos, marcador, árbitros)',
+    summary: 'Detalle de un partido (equipos con roster, árbitros)',
   })
   findOne(@Param('id') id: string) {
     return this.partidosService.findOne(id);

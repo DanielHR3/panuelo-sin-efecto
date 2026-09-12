@@ -139,6 +139,16 @@ describe('PartidosService', () => {
     });
   });
 
+  it('findAsignados() filtra por asignaciones.some.arbitroId', async () => {
+    mockPrisma.partido.findMany.mockResolvedValueOnce([]);
+    await service.findAsignados('ref-1');
+    expect(mockPrisma.partido.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { asignaciones: { some: { arbitroId: 'ref-1' } } },
+      }),
+    );
+  });
+
   it('findOne() lanza NotFound si no existe', async () => {
     mockPrisma.partido.findUnique.mockResolvedValueOnce(null);
     await expect(service.findOne('x')).rejects.toBeInstanceOf(
