@@ -24,7 +24,9 @@ async function main() {
     },
   });
 
-  console.log(`✅ Super Administrador creado: ${superAdmin.nombre} (${superAdmin.email}) - Rol: ${superAdmin.rol}`);
+  console.log(
+    `✅ Super Administrador creado: ${superAdmin.nombre} (${superAdmin.email}) - Rol: ${superAdmin.rol}`,
+  );
 }
 
 main()

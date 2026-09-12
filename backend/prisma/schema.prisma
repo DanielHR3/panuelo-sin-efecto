@@ -90,6 +90,9 @@ model Partido {
   fechaHora         DateTime
   dificultad        String               // REGULAR, MEDIO, COMPLICADO
   estado            String               // PROGRAMADO, EN_CURSO, FINALIZADO
+  // Caché denormalizada del marcador. La fuente de verdad es la tabla
+  // EventoPartido (Caja Negra): estos campos se recalculan en la misma
+  // transacción que inserta cada evento. No mutar directamente por API.
   marcadorLocal     Int                  @default(0)
   marcadorVisitante Int                  @default(0)
   
@@ -124,17 +127,26 @@ model AsignacionArbitral {
 model EventoPartido {
   id            String   @id @default(uuid())
   timestamp     DateTime @default(now())
-  tipoEvento    String   // INICIO_MITAD, FIN_MITAD, TD, PAT1, PAT2, SAFETY, TIMEOUT, FALTA_PERSONAL, EXPULSION, UNDO_LAST_ACTION, INTERCEPCION
-  
+  tipoEvento    String   // INICIO_MITAD, FIN_MITAD, TD, PAT1, PAT2, SAFETY, PICK_SIX, TIMEOUT, FALTA_PERSONAL, EXPULSION, INTERCEPCION, SACK, UNDO_LAST_ACTION
+
+  // Id generado por el dispositivo del árbitro. Permite que el reintento de la
+  // cola offline sea idempotente: (partidoId, clientEventId) es único, así que
+  // reenviar el mismo evento no duplica puntos. Nulo para eventos creados
+  // directamente en el servidor.
+  clientEventId String?
+
   partidoId     String
   partido       Partido  @relation(fields: [partidoId], references: [id])
-  
+
   equipoId      String?
   equipo        Equipo?  @relation(fields: [equipoId], references: [id])
-  
+
   jugadorId     String?
   jugador       Jugador? @relation(fields: [jugadorId], references: [id])
-  
+
   arbitroId     String
   arbitro       Usuario  @relation("ArbitroRegistrador", fields: [arbitroId], references: [id])
+
+  @@unique([partidoId, clientEventId])
+  @@index([partidoId, timestamp])
 }
