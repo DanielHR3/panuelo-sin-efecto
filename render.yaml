@@ -1,0 +1,33 @@
+# Blueprint de Render (https://render.com/docs/blueprint-spec).
+# Despliega la API + PostgreSQL con "New > Blueprint" apuntando a este repo.
+# La web (Next.js) se despliega aparte en Vercel apuntando a /web, con la
+# variable NEXT_PUBLIC_API_URL = URL pública de panuelo-api.
+databases:
+  - name: panuelo-db
+    plan: free
+    databaseName: panuelo
+    user: panuelo
+
+services:
+  - type: web
+    name: panuelo-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: panuelo-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: PORT
+        value: 3000
+      # Orígenes permitidos por CORS: la URL de la web en Vercel. Se captura
+      # en el panel de Render al crear el servicio.
+      - key: CORS_ORIGINS
+        sync: false
