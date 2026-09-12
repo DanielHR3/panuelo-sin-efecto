@@ -30,7 +30,32 @@
   --color-foreground: var(--foreground);
   --color-team-a: var(--team-a);
   --color-team-b: var(--team-b);
+  /* Paleta de la vista pública: el campo y el pañuelo del ícono. */
+  --color-campo: #0f5132;
+  --color-campo-claro: #15803d;
+  --color-tiza: #f8fafc;
+  --color-panuelo: #facc15;
   --font-sans: var(--font-outfit);
+}
+
+/* Fondo del marcador público: líneas de yarda sobre el campo. */
+.campo-yardas {
+  background-color: var(--color-campo);
+  background-image:
+    linear-gradient(135deg, rgba(21, 128, 61, 0.55), rgba(5, 46, 22, 0.6)),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 44px,
+      rgba(255, 255, 255, 0.09) 44px,
+      rgba(255, 255, 255, 0.09) 46px
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
+  }
 }
 
 body {

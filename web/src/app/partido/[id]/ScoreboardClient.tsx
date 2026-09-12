@@ -430,6 +430,9 @@ export default function ScoreboardClient({
             onClick={() => { vibrate(); setTheme(resolvedTheme === "dark" ? "light" : "dark"); }}
             className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
             aria-label="Cambiar tema"
+            // next-themes no conoce el tema en el servidor: el icono puede
+            // diferir al hidratar en modo oscuro; se acepta ese único texto.
+            suppressHydrationWarning
           >
             {resolvedTheme === "dark" ? "☀️" : "🌙"}
           </button>
@@ -437,14 +440,15 @@ export default function ScoreboardClient({
       </header>
 
       {!finalizado && (
-        <div className="glass-panel rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div className="flex flex-col">
+        <div className="glass-panel rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col min-w-0">
             <span className="text-xs font-bold uppercase tracking-widest opacity-60">Cronómetro de Mitad</span>
             <span className={`text-3xl font-black tabular-nums ${halfTimer.remainingSeconds <= 120 ? "text-red-500" : ""}`}>
               {formatTime(halfTimer.remainingSeconds)}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          {/* En pantallas de 320 px los cuatro controles no caben junto al reloj: bajan a una segunda fila. */}
+          <div className="flex items-center gap-2 ml-auto">
             <input
               type="number"
               min={1}
