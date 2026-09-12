@@ -2,11 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { destinoTrasLogin } from "@/lib/destino-login";
+import type { Rol } from "@/lib/session";
 
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/admin";
+  const next = searchParams.get("next");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,12 +25,12 @@ export default function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = (await res.json()) as { message?: string };
+      const data = (await res.json()) as { message?: string; usuario?: { rol?: Rol } };
       if (!res.ok) {
         setError(data.message ?? "No se pudo iniciar sesión");
         return;
       }
-      router.push(next);
+      router.push(destinoTrasLogin(next, data.usuario?.rol));
       router.refresh();
     } catch {
       setError("No se pudo conectar con el servidor");

@@ -142,6 +142,99 @@ export interface EventoDiscrepancia {
 
 export type AccionResolucion = "DESCARTAR_A" | "DESCARTAR_B" | "MANTENER_AMBOS";
 
+/* ---------- Vista pública (GET /publico/*, HU-3.4 / HU-3.1) ---------- */
+
+export interface EquipoPublico {
+  id: string;
+  nombre: string;
+  colorPrimario: string | null;
+}
+
+export interface PartidoPublico {
+  id: string;
+  fechaHora: string;
+  estado: EstadoPartido;
+  marcadorLocal: number;
+  marcadorVisitante: number;
+  mvpJugadorId: string | null;
+  equipoLocal: EquipoPublico;
+  equipoVisitante: EquipoPublico;
+}
+
+export interface FilaTabla {
+  posicion: number;
+  equipoId: string;
+  nombre: string;
+  colorPrimario: string | null;
+  pj: number;
+  pg: number;
+  pe: number;
+  pp: number;
+  pf: number;
+  pc: number;
+  dif: number;
+  pts: number;
+}
+
+export interface LiderPublico {
+  jugadorId: string;
+  puntos: number;
+  td: number;
+  intercepciones: number;
+  nombre: string;
+  numeroJersey: string;
+  equipo: EquipoPublico | null;
+}
+
+export interface CategoriaPublica {
+  id: string;
+  nombre: string;
+  tabla: FilaTabla[];
+  recientes: PartidoPublico[];
+  proximos: PartidoPublico[];
+  lideres: LiderPublico[];
+}
+
+export interface LigaPublica {
+  id: string;
+  nombre: string;
+  logoUrl: string | null;
+  categorias: CategoriaPublica[];
+}
+
+export interface ResumenPublico {
+  ligas: LigaPublica[];
+}
+
+export interface CategoriaPublicaDetalle extends CategoriaPublica {
+  liga: { id: string; nombre: string; logoUrl: string | null };
+}
+
+export interface EstadisticasJugador {
+  td: number;
+  pat1: number;
+  pat2: number;
+  safety: number;
+  pickSix: number;
+  intercepciones: number;
+  sacks: number;
+  faltas: number;
+  puntos: number;
+  partidos: number;
+  mvps: number;
+}
+
+export interface PerfilJugador {
+  id: string;
+  nombre: string;
+  numeroJersey: string;
+  equipo: EquipoPublico;
+  categoria: { id: string; nombre: string };
+  liga: { id: string; nombre: string; logoUrl: string | null };
+  estadisticas: EstadisticasJugador;
+  partidos: (PartidoPublico & { esMvp: boolean; puntos: number; td: number })[];
+}
+
 export interface Discrepancia {
   id: string;
   partidoId: string;

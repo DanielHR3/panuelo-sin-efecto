@@ -31,6 +31,8 @@ export default function AdminShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const etiquetaTema =
+    theme === "system" ? "🖥️ Sistema" : resolvedTheme === "dark" ? "🌙 Oscuro" : "☀️ Claro";
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -100,8 +102,12 @@ export default function AdminShell({
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               className="flex-1 p-2 rounded-lg bg-slate-100 dark:bg-zinc-800 text-xs font-semibold"
               aria-label="Cambiar tema"
+              // next-themes no conoce el tema en el servidor (`theme` llega
+              // undefined): el texto difiere al hidratar y React lo
+              // regeneraba con un error en consola. Se acepta ese único texto.
+              suppressHydrationWarning
             >
-              {theme === "system" ? "🖥️ Sistema" : resolvedTheme === "dark" ? "🌙 Oscuro" : "☀️ Claro"}
+              {etiquetaTema}
             </button>
             <button
               type="button"
