@@ -1,0 +1,22 @@
+name: Mantener despierta la API
+
+# El plan gratuito de Render duerme el servicio tras 15 min sin tráfico y
+# tarda ~1 min en despertar. Un ping cada 10 min lo mantiene listo para que
+# el árbitro no espere en el campo. GitHub Actions es gratis en repos
+# públicos; el cron de Actions puede retrasarse unos minutos, por eso 10 y
+# no 14. Se puede desactivar desde la pestaña Actions si se cambia de plan.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping a la API
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 https://panuelo-api.onrender.com/)
+          echo "GET / -> HTTP $code"
+          test "$code" = "200"
