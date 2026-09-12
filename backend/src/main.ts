@@ -4,9 +4,21 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { PrismaService } from './prisma/prisma.service';
+import { asegurarSuperadmin } from './common/superadmin-bootstrap';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Superadmin inicial sin shell: si SEED_SUPERADMIN_PASSWORD está definida
+  // (p. ej. en las variables de entorno de Render), se crea al arrancar.
+  const superadmin = await asegurarSuperadmin(
+    app.get(PrismaService),
+    process.env,
+  );
+  if (superadmin) {
+    console.log(`Superadmin disponible: ${superadmin.email}`);
+  }
 
   // Cabeceras de seguridad HTTP estándar (X-Content-Type-Options, HSTS,
   // X-Frame-Options, etc.). CSP se apaga: su valor por defecto bloquea los

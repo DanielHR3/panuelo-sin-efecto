@@ -30,3 +30,8 @@ services:
       # vacía, la API acepta cualquier origen (útil el primer día de pruebas).
       - key: CORS_ORIGINS
         sync: false
+      # Contraseña del SUPERADMIN inicial: la API lo crea sola al arrancar
+      # (idempotente). Sustituye al seed manual, que en el plan gratis de
+      # Render no se puede correr por falta de shell.
+      - key: SEED_SUPERADMIN_PASSWORD
+        sync: false

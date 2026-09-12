@@ -27,8 +27,8 @@ cd backend
 cp .env.example .env            # ajusta JWT_SECRET y SEED_SUPERADMIN_PASSWORD
 npm install
 npx prisma migrate dev          # aplica migraciones y genera el cliente
-npx prisma db seed              # crea el SUPERADMIN inicial
 npm run start:dev               # http://localhost:3000 (Swagger en /docs)
+                                # crea el SUPERADMIN al arrancar si SEED_SUPERADMIN_PASSWORD está en .env
 
 # 3. Web
 cd ../web
@@ -56,10 +56,7 @@ Pasos, en orden:
 
 1. Neon: crear proyecto `panuelo` y copiar la cadena de conexión (con `?sslmode=require`).
 2. Render: *New → Blueprint* sobre este repo (rama `main`). Capturar `DATABASE_URL` (Neon). Dejar `CORS_ORIGINS` vacío el primer día. Al arrancar, el contenedor aplica `prisma migrate deploy` solo.
-3. Seed, una sola vez, desde tu máquina (la shell de Render no está en el plan gratis):
-   ```bash
-   cd backend && DATABASE_URL="<cadena de Neon>" SEED_SUPERADMIN_PASSWORD="<contraseña>" npx prisma db seed
-   ```
+3. Superadmin inicial: definir `SEED_SUPERADMIN_PASSWORD` en las variables del servicio de Render. La API lo crea sola al arrancar (idempotente); no hace falta shell ni seed manual.
 4. Vercel: importar el repo, *Root Directory* `web`, variable `NEXT_PUBLIC_API_URL` = URL pública de la API en Render.
 5. Render: poner `CORS_ORIGINS` = URL de Vercel y volver a desplegar.
 6. Opcional: un ping gratuito cada 10 min a la URL de la API (cron-job.org o UptimeRobot) para que no se duerma durante un partido.
