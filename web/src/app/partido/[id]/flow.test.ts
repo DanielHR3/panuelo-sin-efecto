@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { CLOSED, flowReducer, type FlowState } from "./flow";
+import { CLOSED, flowReducer, opcionesDefplay, type FlowState } from "./flow";
+
+describe("opcionesDefplay (HU-1.1: configuración de la liga)", () => {
+  it("con registro de intercepciones ofrece sack, intercepción y safety", () => {
+    expect(opcionesDefplay(true)).toEqual(["SACK", "INTERCEPCION", "SAFETY"]);
+  });
+
+  it("sin registro de intercepciones oculta INTERCEPCION pero conserva el resto", () => {
+    expect(opcionesDefplay(false)).toEqual(["SACK", "SAFETY"]);
+  });
+});
 
 describe("flowReducer (modal multi-paso del árbitro)", () => {
   it("abrir_td lleva a elegir el tipo de anotación para ese equipo", () => {

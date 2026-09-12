@@ -29,7 +29,14 @@ model Usuario {
 model Liga {
   id            String      @id @default(uuid())
   nombre        String
-  
+
+  // HU-1.1: identidad y reglas generales de la liga. Las banderas deciden
+  // qué le exige la PWA al árbitro: elegir MVP al finalizar y ofrecer el
+  // evento INTERCEPCION (PICK_SIX sigue disponible siempre porque anota).
+  logoUrl                String?
+  registraMvp            Boolean @default(true)
+  registraIntercepciones Boolean @default(true)
+
   propietarioId String
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
   

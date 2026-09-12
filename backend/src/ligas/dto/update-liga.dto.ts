@@ -1,9 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { OmitType, PartialType } from '@nestjs/swagger';
+import { CreateLigaDto } from './create-liga.dto';
 
-export class UpdateLigaDto {
-  @ApiProperty({ example: 'Liga Metropolitana de Tocho (renombrada)' })
-  @IsNotEmpty({ message: 'El nombre de la liga es obligatorio' })
-  @IsString()
-  nombre: string;
-}
+/**
+ * Todos los campos opcionales: renombrar, cambiar el logo o las banderas de
+ * HU-1.1 por separado. El propietario no se cambia por esta vía.
+ */
+export class UpdateLigaDto extends PartialType(
+  OmitType(CreateLigaDto, ['propietarioId'] as const),
+) {}

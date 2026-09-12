@@ -10,13 +10,51 @@ function readString(formData: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/**
+ * HU-1.1: un checkbox no marcado no viaja en el FormData, así que "ausente"
+ * significa `false` (no "sin cambios") en los formularios de configuración.
+ */
+function readCheckbox(formData: FormData, key: string): boolean {
+  return formData.get(key) === "on";
+}
+
+function leerConfigLiga(formData: FormData) {
+  return {
+    logoUrl: readString(formData, "logoUrl"),
+    registraMvp: readCheckbox(formData, "registraMvp"),
+    registraIntercepciones: readCheckbox(formData, "registraIntercepciones"),
+  };
+}
+
 export async function crearLiga(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const nombre = readString(formData, "nombre");
   if (!nombre) return { error: "El nombre de la liga es obligatorio" };
   try {
-    await authedFetch("/ligas", { method: "POST", body: JSON.stringify({ nombre }) });
+    await authedFetch("/ligas", {
+      method: "POST",
+      body: JSON.stringify({ nombre, ...leerConfigLiga(formData) }),
+    });
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "No se pudo crear la liga" };
+  }
+  revalidatePath("/admin/ligas");
+}
+
+/** HU-1.1: logo y banderas de MVP / intercepciones de una liga existente. */
+export async function actualizarLiga(
+  id: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const nombre = readString(formData, "nombre");
+  if (!nombre) return { error: "El nombre de la liga es obligatorio" };
+  try {
+    await authedFetch(`/ligas/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ nombre, ...leerConfigLiga(formData) }),
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "No se pudo guardar la liga" };
   }
   revalidatePath("/admin/ligas");
 }

@@ -20,6 +20,12 @@ export interface Categoria {
 export interface Liga {
   id: string;
   nombre: string;
+  /** HU-1.1: URL pública del logo, o null si la liga no tiene. */
+  logoUrl: string | null;
+  /** HU-1.1: la PWA exige elegir MVP al finalizar cada partido. */
+  registraMvp: boolean;
+  /** HU-1.1: la PWA ofrece el evento INTERCEPCION al árbitro. */
+  registraIntercepciones: boolean;
   propietarioId: string;
   categorias: Categoria[];
   createdAt: string;

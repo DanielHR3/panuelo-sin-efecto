@@ -19,6 +19,7 @@ export function ActionModal({
   flow,
   equipoLocal,
   equipoVisitante,
+  defplayOpciones,
   dispatch,
   onClose,
   onSelectPlayer,
@@ -27,6 +28,8 @@ export function ActionModal({
   flow: FlowState;
   equipoLocal: EquipoConRoster;
   equipoVisitante: EquipoConRoster;
+  /** HU-1.1: jugadas defensivas habilitadas por la liga (ver opcionesDefplay). */
+  defplayOpciones: DefplayTipo[];
   dispatch: (action: FlowAction) => void;
   onClose: () => void;
   onSelectPlayer: (jugador: Jugador) => void;
@@ -110,7 +113,7 @@ export function ActionModal({
 
         {flow.step === "defplay_type" && (
           <div className="grid grid-cols-1 gap-3">
-            {(Object.keys(DEFPLAY_LABEL) as DefplayTipo[]).map((tipoEvento) => (
+            {defplayOpciones.map((tipoEvento) => (
               <button
                 key={tipoEvento}
                 onClick={() => dispatch({ type: "elegir_defplay_tipo", tipoEvento })}

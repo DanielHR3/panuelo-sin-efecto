@@ -23,7 +23,7 @@ import type {
 } from "@/lib/types";
 import { ActionModal } from "./ActionModal";
 import { describirEvento } from "./describe";
-import { CLOSED, flowReducer, type TeamSide } from "./flow";
+import { CLOSED, flowReducer, opcionesDefplay, type TeamSide } from "./flow";
 import { playBeep, useHalfTimer, useHaptics, useScreenLock } from "./hooks";
 import { LockOverlay } from "./LockOverlay";
 import { MvpModal } from "./MvpModal";
@@ -123,6 +123,11 @@ export default function ScoreboardClient({
   });
 
   const finalizado = estado === "FINALIZADO";
+  // HU-1.1: reglas de la liga. Si el detalle no trae la liga (no debería),
+  // se asume el comportamiento completo para no ocultar nada por accidente.
+  const liga = partido.categoria?.liga;
+  const registraMvp = liga?.registraMvp ?? true;
+  const defplayOpciones = opcionesDefplay(liga?.registraIntercepciones ?? true);
   const jugadorMvp =
     equipoLocal.jugadores.find((j) => j.id === mvpJugadorId) ??
     equipoVisitante.jugadores.find((j) => j.id === mvpJugadorId) ??
@@ -246,7 +251,7 @@ export default function ScoreboardClient({
    * ese valor en vez de forzar el modal de nuevo.
    */
   useEffect(() => {
-    if (estado !== "FINALIZADO" || mvpVerificadoRef.current) return;
+    if (estado !== "FINALIZADO" || mvpVerificadoRef.current || !registraMvp) return;
     mvpVerificadoRef.current = true;
     void (async () => {
       const pendiente = await leerMvpPendiente(partido.id);
@@ -489,7 +494,7 @@ export default function ScoreboardClient({
         </div>
       )}
 
-      {finalizado && (
+      {finalizado && registraMvp && (
         <button
           onClick={() => { vibrate(); setMvpModalOpen(true); }}
           className="text-center text-sm font-black text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 rounded-xl py-2 animate-pop"
@@ -563,6 +568,7 @@ export default function ScoreboardClient({
         flow={flow}
         equipoLocal={equipoLocal}
         equipoVisitante={equipoVisitante}
+        defplayOpciones={defplayOpciones}
         dispatch={dispatch}
         onClose={() => dispatch({ type: "cerrar" })}
         onSelectPlayer={handleSelectPlayer}
