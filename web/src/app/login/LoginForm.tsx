@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { destinoTrasLogin } from "@/lib/destino-login";
 import type { Rol } from "@/lib/session";
@@ -47,7 +48,7 @@ export default function LoginForm() {
       <div>
         <h1 className="text-2xl font-black tracking-tight">Pañuelo sin efecto</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Inicia sesión para administrar tus ligas
+          Árbitros y administradores de liga entran por aquí.
         </p>
       </div>
 
@@ -88,6 +89,20 @@ export default function LoginForm() {
       >
         {loading ? "Entrando…" : "Entrar"}
       </button>
+
+      <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-col gap-1.5 border-t border-slate-200 dark:border-zinc-800 pt-4">
+        <p>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">Árbitro:</span> usa el correo y
+          la contraseña que te dio el administrador de tu liga. Verás tus partidos asignados.
+        </p>
+        <p>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">Administrador:</span> entras al
+          panel para cargar ligas, equipos, jugadores, árbitros y partidos.
+        </p>
+        <Link href="/" className="font-semibold hover:underline mt-1">
+          ← Ver marcadores públicos
+        </Link>
+      </div>
     </form>
   );
 }
