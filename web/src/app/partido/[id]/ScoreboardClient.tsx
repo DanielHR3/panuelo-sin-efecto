@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { apiFetch } from "@/lib/api";
 import { calcularMarcador } from "@/lib/marcador";
@@ -496,6 +497,16 @@ export default function ScoreboardClient({
         <div className="text-center text-sm font-black text-blue-500 bg-blue-500/10 rounded-xl py-2">
           🏁 Partido finalizado
         </div>
+      )}
+
+      {finalizado && (
+        <Link
+          href={`/resultado/${partido.id}`}
+          onClick={() => vibrate()}
+          className="text-center text-base font-black bg-panuelo text-[#1a1600] rounded-xl py-3 shadow-lg animate-pop"
+        >
+          📤 Compartir resultado
+        </Link>
       )}
 
       {finalizado && registraMvp && (

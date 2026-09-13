@@ -236,3 +236,42 @@ export function calcularLideres(
     )
     .slice(0, limite);
 }
+
+export interface Anotador {
+  jugadorId: string | null;
+  equipoId: string;
+  puntos: number;
+  td: number;
+}
+
+/**
+ * Resumen de anotación de UN partido (HU-2.7 fase 2): quién sumó puntos por
+ * cada equipo. Los eventos sin jugador se agrupan en una fila por equipo
+ * con jugadorId null ("Sin jugador"). Solo cuentan eventos vigentes.
+ */
+export function calcularAnotadores(eventos: EventoPublico[]): Anotador[] {
+  const acumulado = new Map<string, Anotador>();
+  for (const ev of eventosVigentesPorPartido(eventos)) {
+    const puntos = puntosDe(ev.tipoEvento);
+    if (puntos === 0 || !ev.equipoId) continue;
+    const clave = `${ev.equipoId}|${ev.jugadorId ?? ''}`;
+    let fila = acumulado.get(clave);
+    if (!fila) {
+      fila = {
+        jugadorId: ev.jugadorId,
+        equipoId: ev.equipoId,
+        puntos: 0,
+        td: 0,
+      };
+      acumulado.set(clave, fila);
+    }
+    fila.puntos += puntos;
+    if (ev.tipoEvento === 'TD' || ev.tipoEvento === 'PICK_SIX') fila.td += 1;
+  }
+  return [...acumulado.values()].sort(
+    (a, b) =>
+      b.puntos - a.puntos ||
+      b.td - a.td ||
+      (a.jugadorId ?? 'zzz').localeCompare(b.jugadorId ?? 'zzz'),
+  );
+}

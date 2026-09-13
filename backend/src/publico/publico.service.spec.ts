@@ -219,3 +219,127 @@ describe('PublicoService', () => {
     });
   });
 });
+
+describe('PublicoService.partido (resumen compartible, HU-2.7)', () => {
+  let service: PublicoService;
+  const mockPrisma2 = {
+    partido: { findUnique: jest.fn() },
+    eventoPartido: { findMany: jest.fn() },
+    jugador: { findMany: jest.fn() },
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        PublicoService,
+        { provide: PrismaService, useValue: mockPrisma2 },
+      ],
+    }).compile();
+    service = module.get(PublicoService);
+  });
+
+  it('lanza NotFound si no existe', async () => {
+    mockPrisma2.partido.findUnique.mockResolvedValueOnce(null);
+    await expect(service.partido('nada')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('devuelve marcador, anotadores con nombre, MVP y árbitros sin correo', async () => {
+    mockPrisma2.partido.findUnique.mockResolvedValueOnce({
+      ...partido('p1', 'FINALIZADO', 13, 6, '2026-09-20T18:00:00Z'),
+      mvpJugadorId: 'j1',
+      categoria: {
+        id: 'c1',
+        nombre: 'Partidos rápidos',
+        liga: {
+          id: 'l1',
+          nombre: 'Partidos rápidos de Beto',
+          logoUrl: null,
+          tipo: 'RAPIDA',
+        },
+      },
+      mvpJugador: {
+        id: 'j1',
+        nombre: 'Ana',
+        numeroJersey: '7',
+        equipoId: A.id,
+      },
+      asignaciones: [{ rolEnCampo: 'Referee', arbitro: { nombre: 'Beto' } }],
+    });
+    mockPrisma2.eventoPartido.findMany.mockResolvedValueOnce([
+      {
+        id: 'e1',
+        partidoId: 'p1',
+        tipoEvento: 'TD',
+        jugadorId: 'j1',
+        equipoId: A.id,
+      },
+      {
+        id: 'e2',
+        partidoId: 'p1',
+        tipoEvento: 'PAT1',
+        jugadorId: 'j1',
+        equipoId: A.id,
+      },
+      {
+        id: 'e3',
+        partidoId: 'p1',
+        tipoEvento: 'TD',
+        jugadorId: null,
+        equipoId: A.id,
+      },
+      {
+        id: 'e4',
+        partidoId: 'p1',
+        tipoEvento: 'TD',
+        jugadorId: 'j2',
+        equipoId: B.id,
+      },
+    ]);
+    mockPrisma2.jugador.findMany.mockResolvedValueOnce([
+      { id: 'j1', nombre: 'Ana', numeroJersey: '7' },
+      { id: 'j2', nombre: 'Beto L.', numeroJersey: '9' },
+    ]);
+
+    const r = await service.partido('p1');
+    expect(r).toMatchObject({
+      id: 'p1',
+      marcadorLocal: 13,
+      marcadorVisitante: 6,
+      liga: { nombre: 'Partidos rápidos de Beto', esRapida: true },
+      mvp: { id: 'j1', nombre: 'Ana' },
+      arbitros: [{ nombre: 'Beto', rolEnCampo: 'Referee' }],
+    });
+    expect(r).not.toHaveProperty('equipoLocalId');
+    expect(JSON.stringify(r)).not.toContain('@');
+    // Empate a 6: el jugador con nombre va antes que "sin jugador".
+    expect(r.anotadores).toEqual([
+      {
+        jugadorId: 'j1',
+        equipoId: A.id,
+        puntos: 7,
+        td: 1,
+        nombre: 'Ana',
+        numeroJersey: '7',
+      },
+      {
+        jugadorId: 'j2',
+        equipoId: B.id,
+        puntos: 6,
+        td: 1,
+        nombre: 'Beto L.',
+        numeroJersey: '9',
+      },
+      {
+        jugadorId: null,
+        equipoId: A.id,
+        puntos: 6,
+        td: 1,
+        nombre: null,
+        numeroJersey: null,
+      },
+    ]);
+  });
+});

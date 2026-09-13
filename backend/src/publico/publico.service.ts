@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { puntosDe } from '../eventos/evento.constants';
 import {
+  calcularAnotadores,
   calcularEstadisticasJugador,
   calcularLideres,
   calcularTablaPosiciones,
@@ -211,6 +212,88 @@ export class PublicoService {
         puntos: porPartido.get(p.id)?.puntos ?? 0,
         td: porPartido.get(p.id)?.td ?? 0,
       })),
+    };
+  }
+
+  /**
+   * Resumen público de un partido (HU-2.7 fase 2): lo que el árbitro
+   * comparte con el dueño de la liga. Sin correos de árbitros ni ids de
+   * eventos; solo lo que cabe en una captura.
+   */
+  async partido(id: string) {
+    const partido = await this.prisma.partido.findUnique({
+      where: { id },
+      select: {
+        ...partidoPublico,
+        categoria: {
+          select: {
+            id: true,
+            nombre: true,
+            liga: {
+              select: { id: true, nombre: true, logoUrl: true, tipo: true },
+            },
+          },
+        },
+        mvpJugador: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroJersey: true,
+            equipoId: true,
+          },
+        },
+        asignaciones: {
+          select: { rolEnCampo: true, arbitro: { select: { nombre: true } } },
+        },
+      },
+    });
+    if (!partido) throw new NotFoundException(`Partido ${id} no encontrado`);
+
+    const eventos = await this.prisma.eventoPartido.findMany({
+      where: { partidoId: id, descartado: false },
+      orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
+      select: eventoSelect,
+    });
+    const anotadoresBase = calcularAnotadores(eventos);
+    const jugadorIds = anotadoresBase
+      .map((a) => a.jugadorId)
+      .filter((j): j is string => j !== null);
+    const jugadores =
+      jugadorIds.length === 0
+        ? []
+        : await this.prisma.jugador.findMany({
+            where: { id: { in: jugadorIds } },
+            select: { id: true, nombre: true, numeroJersey: true },
+          });
+    const jugadoresPorId = new Map(jugadores.map((j) => [j.id, j]));
+    const anotadores = anotadoresBase.map((a) => {
+      const j = a.jugadorId ? jugadoresPorId.get(a.jugadorId) : undefined;
+      return {
+        ...a,
+        nombre: j?.nombre ?? null,
+        numeroJersey: j?.numeroJersey ?? null,
+      };
+    });
+
+    const { categoria, mvpJugador, asignaciones, ...resto } = partido;
+    const { equipoLocalId, equipoVisitanteId, ...publico } = resto;
+    void equipoLocalId;
+    void equipoVisitanteId;
+    return {
+      ...publico,
+      categoria: { id: categoria.id, nombre: categoria.nombre },
+      liga: {
+        id: categoria.liga.id,
+        nombre: categoria.liga.nombre,
+        logoUrl: categoria.liga.logoUrl,
+        esRapida: categoria.liga.tipo === 'RAPIDA',
+      },
+      mvp: mvpJugador,
+      arbitros: asignaciones.map((a) => ({
+        nombre: a.arbitro.nombre,
+        rolEnCampo: a.rolEnCampo,
+      })),
+      anotadores,
     };
   }
 

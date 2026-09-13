@@ -245,3 +245,21 @@ export interface Discrepancia {
   resueltoPorId: string | null;
   resolvedAt: string | null;
 }
+
+/** Resumen compartible de un partido (GET /publico/partidos/:id, HU-2.7). */
+export interface AnotadorPublico {
+  jugadorId: string | null;
+  equipoId: string;
+  puntos: number;
+  td: number;
+  nombre: string | null;
+  numeroJersey: string | null;
+}
+
+export interface ResumenPartido extends PartidoPublico {
+  categoria: { id: string; nombre: string };
+  liga: { id: string; nombre: string; logoUrl: string | null; esRapida: boolean };
+  mvp: { id: string; nombre: string; numeroJersey: string; equipoId: string } | null;
+  arbitros: { nombre: string; rolEnCampo: string }[];
+  anotadores: AnotadorPublico[];
+}
