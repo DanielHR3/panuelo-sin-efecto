@@ -1,7 +1,16 @@
+import Link from "next/link";
 import type { PartidoPublico } from "@/lib/types";
 import { fechaCorta, fechaHora } from "./formato";
 
-function Equipo({ nombre, color, alineacion }: { nombre: string; color: string | null; alineacion: "izq" | "der" }) {
+function Equipo({
+  nombre,
+  color,
+  alineacion,
+}: {
+  nombre: string;
+  color: string | null;
+  alineacion: "izq" | "der";
+}) {
   return (
     <span
       className={`flex items-center gap-2 min-w-0 ${alineacion === "der" ? "flex-row-reverse text-right" : ""}`}
@@ -20,19 +29,34 @@ function Equipo({ nombre, color, alineacion }: { nombre: string; color: string |
 export function FilaMarcador({ partido }: { partido: PartidoPublico }) {
   const enJuego = partido.estado === "EN_CURSO";
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-3 border-b border-foreground/10 last:border-b-0">
-      <Equipo nombre={partido.equipoLocal.nombre} color={partido.equipoLocal.colorPrimario} alineacion="izq" />
-      <div className="flex flex-col items-center leading-none">
-        <span className="font-black text-2xl tabular-nums tracking-tight">
-          {partido.marcadorLocal}
-          <span className="opacity-40 mx-1.5">–</span>
-          {partido.marcadorVisitante}
-        </span>
-        <span className={`text-[11px] mt-1 font-semibold ${enJuego ? "text-campo-claro dark:text-green-400" : "opacity-60"}`}>
-          {enJuego ? "En juego" : fechaCorta(partido.fechaHora)}
-        </span>
-      </div>
-      <Equipo nombre={partido.equipoVisitante.nombre} color={partido.equipoVisitante.colorPrimario} alineacion="der" />
+    <li className="border-b border-foreground/10 last:border-b-0">
+      <Link
+        href={`/resultado/${partido.id}`}
+        className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-3 rounded-lg hover:bg-foreground/5"
+      >
+        <Equipo
+          nombre={partido.equipoLocal.nombre}
+          color={partido.equipoLocal.colorPrimario}
+          alineacion="izq"
+        />
+        <div className="flex flex-col items-center leading-none">
+          <span className="font-black text-2xl tabular-nums tracking-tight">
+            {partido.marcadorLocal}
+            <span className="opacity-40 mx-1.5">–</span>
+            {partido.marcadorVisitante}
+          </span>
+          <span
+            className={`text-[11px] mt-1 font-semibold ${enJuego ? "text-campo-claro dark:text-green-400" : "opacity-60"}`}
+          >
+            {enJuego ? "En juego" : fechaCorta(partido.fechaHora)}
+          </span>
+        </div>
+        <Equipo
+          nombre={partido.equipoVisitante.nombre}
+          color={partido.equipoVisitante.colorPrimario}
+          alineacion="der"
+        />
+      </Link>
     </li>
   );
 }
@@ -40,9 +64,19 @@ export function FilaMarcador({ partido }: { partido: PartidoPublico }) {
 export function FilaProximo({ partido }: { partido: PartidoPublico }) {
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-2.5 border-b border-foreground/10 last:border-b-0 text-sm">
-      <Equipo nombre={partido.equipoLocal.nombre} color={partido.equipoLocal.colorPrimario} alineacion="izq" />
-      <span className="text-xs opacity-60 whitespace-nowrap">{fechaHora(partido.fechaHora)}</span>
-      <Equipo nombre={partido.equipoVisitante.nombre} color={partido.equipoVisitante.colorPrimario} alineacion="der" />
+      <Equipo
+        nombre={partido.equipoLocal.nombre}
+        color={partido.equipoLocal.colorPrimario}
+        alineacion="izq"
+      />
+      <span className="text-xs opacity-60 whitespace-nowrap">
+        {fechaHora(partido.fechaHora)}
+      </span>
+      <Equipo
+        nombre={partido.equipoVisitante.nombre}
+        color={partido.equipoVisitante.colorPrimario}
+        alineacion="der"
+      />
     </li>
   );
 }
@@ -64,7 +98,12 @@ export function MarcadorHero({
   return (
     <div className="text-tiza flex flex-col gap-4">
       <p className="flex items-center gap-2 text-sm font-semibold opacity-90">
-        {enJuego && <span aria-hidden className="w-2 h-2 rounded-full bg-panuelo animate-pulse" />}
+        {enJuego && (
+          <span
+            aria-hidden
+            className="w-2 h-2 rounded-full bg-panuelo animate-pulse"
+          />
+        )}
         {etiqueta} · {liga}
       </p>
       {/* En teléfonos el marcador va arriba a todo lo ancho y los nombres
@@ -82,7 +121,9 @@ export function MarcadorHero({
           {partido.equipoVisitante.nombre}
         </p>
       </div>
-      <p className="text-sm opacity-80">{enJuego ? "Marcador en vivo" : fechaHora(partido.fechaHora)}</p>
+      <p className="text-sm opacity-80">
+        {enJuego ? "Marcador en vivo" : fechaHora(partido.fechaHora)}
+      </p>
     </div>
   );
 }

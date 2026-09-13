@@ -40,4 +40,14 @@ export class PublicoController {
   jugador(@Param('id') id: string) {
     return this.publicoService.jugador(id);
   }
+
+  @Public()
+  @Get('partidos/:id')
+  @ApiOperation({
+    summary:
+      'Resumen público de un partido para compartir: marcador, anotadores, MVP y árbitros (HU-2.7)',
+  })
+  partido(@Param('id') id: string) {
+    return this.publicoService.partido(id);
+  }
 }

@@ -1,4 +1,5 @@
 import {
+  calcularAnotadores,
   calcularEstadisticasJugador,
   calcularLideres,
   calcularTablaPosiciones,
@@ -273,5 +274,62 @@ describe('calcularLideres (HU-3.4)', () => {
       { jugadorId: 'j2', puntos: 8, td: 1, intercepciones: 0 },
       { jugadorId: 'j1', puntos: 6, td: 1, intercepciones: 0 },
     ]);
+  });
+});
+
+describe('calcularAnotadores (HU-2.7, resumen compartible)', () => {
+  it('agrupa puntos por jugador y equipo, deja "sin jugador" aparte y respeta UNDO', () => {
+    const eventos = [
+      {
+        id: '1',
+        partidoId: 'p1',
+        tipoEvento: 'TD',
+        jugadorId: 'j1',
+        equipoId: A,
+      },
+      {
+        id: '2',
+        partidoId: 'p1',
+        tipoEvento: 'PAT1',
+        jugadorId: 'j1',
+        equipoId: A,
+      },
+      {
+        id: '3',
+        partidoId: 'p1',
+        tipoEvento: 'TD',
+        jugadorId: null,
+        equipoId: B,
+      },
+      {
+        id: '4',
+        partidoId: 'p1',
+        tipoEvento: 'INTERCEPCION',
+        jugadorId: 'j2',
+        equipoId: B,
+      },
+      {
+        id: '5',
+        partidoId: 'p1',
+        tipoEvento: 'TD',
+        jugadorId: 'j2',
+        equipoId: B,
+      },
+      {
+        id: '6',
+        partidoId: 'p1',
+        tipoEvento: 'UNDO_LAST_ACTION',
+        jugadorId: null,
+        equipoId: null,
+      },
+    ];
+    expect(calcularAnotadores(eventos)).toEqual([
+      { jugadorId: 'j1', equipoId: A, puntos: 7, td: 1 },
+      { jugadorId: null, equipoId: B, puntos: 6, td: 1 },
+    ]);
+  });
+
+  it('sin anotaciones devuelve lista vacía', () => {
+    expect(calcularAnotadores([])).toEqual([]);
   });
 });
