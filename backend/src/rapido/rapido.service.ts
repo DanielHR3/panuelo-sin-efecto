@@ -69,7 +69,9 @@ export class RapidoService {
               nombre: `Partidos rápidos de ${nombreArbitro}`,
               tipo: 'RAPIDA',
               propietarioId: usuario.id,
-              registraMvp: true,
+              // Equipos ad hoc sin roster: no hay a quién elegir de MVP y las
+              // intercepciones se registran sin jugador. Se deja explícito.
+              registraMvp: false,
               registraIntercepciones: true,
             },
             select: { id: true },

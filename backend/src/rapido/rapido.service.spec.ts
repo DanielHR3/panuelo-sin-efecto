@@ -83,6 +83,8 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
     ];
     expect(liga.tipo).toBe('RAPIDA');
     expect(liga.propietarioId).toBe('inv-1');
+    // Sin roster no hay MVP que elegir: la liga rápida no lo exige.
+    expect(liga.registraMvp).toBe(false);
 
     expect(mockTx.equipo.create).toHaveBeenCalledTimes(2);
     const [{ data: partido }] = mockTx.partido.create.mock.calls[0] as [
