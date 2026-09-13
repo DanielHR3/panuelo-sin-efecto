@@ -28,6 +28,7 @@ import { CLOSED, flowReducer, opcionesDefplay, type TeamSide } from "./flow";
 import { playBeep, useHalfTimer, useHaptics, useScreenLock } from "./hooks";
 import { LockOverlay } from "./LockOverlay";
 import { MvpModal } from "./MvpModal";
+import { debePedirMvp } from "./mvp";
 
 const LOCK_TIMEOUT_MS = 60_000;
 
@@ -127,7 +128,8 @@ export default function ScoreboardClient({
   // HU-1.1: reglas de la liga. Si el detalle no trae la liga (no debería),
   // se asume el comportamiento completo para no ocultar nada por accidente.
   const liga = partido.categoria?.liga;
-  const registraMvp = liga?.registraMvp ?? true;
+  const totalJugadores = equipoLocal.jugadores.length + equipoVisitante.jugadores.length;
+  const registraMvp = debePedirMvp(liga?.registraMvp ?? true, totalJugadores);
   const defplayOpciones = opcionesDefplay(liga?.registraIntercepciones ?? true);
   const jugadorMvp =
     equipoLocal.jugadores.find((j) => j.id === mvpJugadorId) ??
@@ -595,7 +597,7 @@ export default function ScoreboardClient({
           equipoLocal={equipoLocal}
           equipoVisitante={equipoVisitante}
           mvpJugadorId={mvpJugadorId}
-          obligatorio={jugadorMvp === null}
+          obligatorio={jugadorMvp === null && totalJugadores > 0}
           onSelect={(jugador) => void handleSelectMvp(jugador)}
           onClose={() => setMvpModalOpen(false)}
         />
