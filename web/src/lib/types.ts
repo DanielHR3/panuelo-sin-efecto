@@ -3,7 +3,11 @@ export type Rol = "SUPERADMIN" | "LIGA_ADMIN" | "ARBITRO";
 export interface Usuario {
   id: string;
   nombre: string;
-  email: string;
+  /**
+   * Solo llega a un SUPERADMIN (GET /usuarios) o en /usuarios/me. A un
+   * LIGA_ADMIN la API le lista los árbitros sin email.
+   */
+  email?: string;
   rol: Rol;
   createdAt: string;
   updatedAt: string;
@@ -33,7 +37,7 @@ export interface Liga {
   updatedAt: string;
 }
 
-/** Columnas de la liga que expone GET /partidos/:id (ruta pública). */
+/** Columnas de la liga que expone GET /partidos/:id (sin propietarioId). */
 export type LigaDePartido = Pick<
   Liga,
   "id" | "nombre" | "logoUrl" | "tipo" | "registraMvp" | "registraIntercepciones"
@@ -73,7 +77,8 @@ export interface AsignacionArbitral {
   partidoId: string;
   arbitroId: string;
   rolEnCampo: RolEnCampo;
-  arbitro?: Pick<Usuario, "id" | "nombre" | "email">;
+  /** La API nunca manda el email del árbitro con un partido. */
+  arbitro?: Pick<Usuario, "id" | "nombre">;
 }
 
 export interface Partido {
@@ -271,8 +276,14 @@ export interface AnotadorPublico {
 }
 
 export interface ResumenPartido extends PartidoPublico {
-  categoria: { id: string; nombre: string };
-  liga: { id: string; nombre: string; logoUrl: string | null; esRapida: boolean };
+  /**
+   * En un partido rápido (`liga.esRapida`) la API omite los ids de la
+   * categoría y la liga contenedoras: con ellos se llegaría a los demás
+   * partidos rápidos del mismo invitado. Solo enlaza a `/categoria/:id`
+   * cuando la liga es normal.
+   */
+  categoria: { id?: string; nombre: string };
+  liga: { id?: string; nombre: string; logoUrl: string | null; esRapida: boolean };
   mvp: { id: string; nombre: string; numeroJersey: string; equipoId: string } | null;
   arbitros: { nombre: string; rolEnCampo: string }[];
   anotadores: AnotadorPublico[];

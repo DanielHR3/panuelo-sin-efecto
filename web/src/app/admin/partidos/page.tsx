@@ -1,4 +1,3 @@
-import { apiFetch } from "@/lib/api";
 import { authedFetch } from "@/lib/server-api";
 import type {
   Liga,
@@ -36,28 +35,30 @@ export default async function PartidosPage({
   searchParams: Promise<{ categoriaId?: string }>;
 }) {
   const { categoriaId } = await searchParams;
-  const ligas = await apiFetch<Liga[]>("/ligas");
+  // GET /ligas ya viene acotada a las ligas del usuario (SUPERADMIN: todas).
+  const ligas = await authedFetch<Liga[]>("/ligas");
   const categoria = categoriaId
     ? ligas.flatMap((l) => l.categorias).find((c) => c.id === categoriaId)
     : undefined;
 
-  const [equipos, partidos, arbitros] = categoriaId
+  // Solo se consulta una categoría que esté entre las ligas visibles: una
+  // ajena (p. ej. un ?categoriaId= pegado a mano) respondería 403 y tiraría
+  // la página al boundary de error.
+  const [equipos, partidos, arbitros] = categoria
     ? await Promise.all([
-        apiFetch<Equipo[]>(`/categorias/${categoriaId}/equipos`),
-        apiFetch<Partido[]>(`/categorias/${categoriaId}/partidos`),
+        authedFetch<Equipo[]>(`/categorias/${categoria.id}/equipos`),
+        authedFetch<Partido[]>(`/categorias/${categoria.id}/partidos`),
         authedFetch<Usuario[]>("/usuarios?rol=ARBITRO"),
       ])
     : [[], [], []];
 
   const finalizados = partidos.filter((p) => p.estado === "FINALIZADO");
-  // Finding 3 (HU-2.6 review): GET /ligas es pública y sin filtrar, así que
-  // un LIGA_ADMIN puede llegar aquí con una categoría de una liga que no le
-  // pertenece. assertCanManagePartido responde 403 en ese caso, y si eso
-  // pasara dentro de un Promise.all sin manejar, tiraría toda la página al
-  // boundary de error genérico (ni el selector de categoría quedaría
-  // accesible). Cada fetch falla en aislado: un partido cuya consulta de
-  // discrepancias falle se trata como "sin discrepancias que mostrar" en vez
-  // de romper la página completa.
+  // Finding 3 (HU-2.6 review): si una consulta de discrepancias responde
+  // con error (p. ej. 403) dentro de un Promise.all sin manejar, tiraría
+  // toda la página al boundary de error genérico (ni el selector de
+  // categoría quedaría accesible). Cada fetch falla en aislado: un partido
+  // cuya consulta de discrepancias falle se trata como "sin discrepancias
+  // que mostrar" en vez de romper la página completa.
   const discrepanciasPorPartido = new Map<string, Discrepancia[]>(
     await Promise.all(
       finalizados.map(async (p) => {
@@ -82,7 +83,7 @@ export default async function PartidosPage({
   const equiposConRoster: EquipoConRoster[] = await Promise.all(
     equipos.map(async (e) => {
       try {
-        return await apiFetch<EquipoConRoster>(`/equipos/${e.id}`);
+        return await authedFetch<EquipoConRoster>(`/equipos/${e.id}`);
       } catch {
         return { ...e, jugadores: [] };
       }

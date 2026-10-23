@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { authedFetch } from "@/lib/server-api";
 import type { Liga, Equipo } from "@/lib/types";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
@@ -11,12 +11,13 @@ export default async function EquiposPage({
   searchParams: Promise<{ categoriaId?: string }>;
 }) {
   const { categoriaId } = await searchParams;
-  const ligas = await apiFetch<Liga[]>("/ligas");
+  const ligas = await authedFetch<Liga[]>("/ligas");
   const categoria = categoriaId
     ? ligas.flatMap((l) => l.categorias).find((c) => c.id === categoriaId)
     : undefined;
-  const equipos = categoriaId
-    ? await apiFetch<Equipo[]>(`/categorias/${categoriaId}/equipos`)
+  // Solo categorías de las ligas visibles; una ajena respondería 403.
+  const equipos = categoria
+    ? await authedFetch<Equipo[]>(`/categorias/${categoria.id}/equipos`)
     : [];
 
   return (

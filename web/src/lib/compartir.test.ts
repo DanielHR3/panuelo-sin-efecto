@@ -11,8 +11,9 @@ const base: ResumenPartido = {
   mvpJugadorId: "j1",
   equipoLocal: { id: "a", nombre: "Toros", colorPrimario: null },
   equipoVisitante: { id: "b", nombre: "Lobos", colorPrimario: null },
-  categoria: { id: "c", nombre: "Partidos rápidos" },
-  liga: { id: "l", nombre: "Partidos rápidos de Beto", logoUrl: null, esRapida: true },
+  // Forma real de un partido rápido: sin ids de categoría ni liga.
+  categoria: { nombre: "Partidos rápidos" },
+  liga: { nombre: "Partidos rápidos de Beto", logoUrl: null, esRapida: true },
   mvp: { id: "j1", nombre: "Ana", numeroJersey: "7", equipoId: "a" },
   arbitros: [{ nombre: "Beto", rolEnCampo: "Referee" }],
   anotadores: [

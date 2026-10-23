@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-async function parseErrorMessage(res: Response): Promise<string> {
+export async function parseErrorMessage(res: Response): Promise<string> {
   try {
     const body = (await res.json()) as { message?: string | string[] };
     if (Array.isArray(body.message)) return body.message.join(", ");
@@ -22,11 +22,12 @@ async function parseErrorMessage(res: Response): Promise<string> {
 }
 
 /**
- * Fetch tipado contra la API pública (endpoints @Public del backend: lecturas
- * de ligas, categorías, equipos, jugadores, partidos). No adjunta credenciales
- * — para llamadas autenticadas usa `authedFetch` (server) o la ruta
- * /api/proxy (cliente). Funciona tanto en Server Components como en Client
- * Components porque solo depende de `fetch` y de una URL pública.
+ * Fetch tipado SIN credenciales. Solo sirve para los endpoints @Public del
+ * backend: el sitio público (`/publico/*`, vía `lib/publico.ts`),
+ * `POST /rapido/partidos` y `POST /auth/login`. Las lecturas CRUD (ligas,
+ * categorías, equipos, jugadores, partidos, eventos, marcador) exigen token
+ * y se acotan por propiedad: usa `authedFetch` (Server Components y Server
+ * Actions) o `proxyFetch` / la ruta /api/proxy (Client Components).
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {

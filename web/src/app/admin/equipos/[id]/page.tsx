@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { authedFetch } from "@/lib/server-api";
 import type { EquipoConRoster } from "@/lib/types";
 import { ActionForm, SubmitButton } from "../../_components/ActionForm";
 import { DeleteButton } from "../../_components/DeleteButton";
@@ -11,7 +11,7 @@ export default async function EquipoRosterPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const equipo = await apiFetch<EquipoConRoster>(`/equipos/${id}`);
+  const equipo = await authedFetch<EquipoConRoster>(`/equipos/${id}`);
 
   return (
     <div className="space-y-6">

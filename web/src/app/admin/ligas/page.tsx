@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { authedFetch } from "@/lib/server-api";
 import type { Liga } from "@/lib/types";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
@@ -46,7 +46,7 @@ function ConfigLigaFields({
 }
 
 export default async function LigasPage() {
-  const ligas = await apiFetch<Liga[]>("/ligas");
+  const ligas = await authedFetch<Liga[]>("/ligas");
 
   return (
     <div className="space-y-6">
