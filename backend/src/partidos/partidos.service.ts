@@ -90,6 +90,8 @@ export class PartidosService {
         },
         asignaciones: { include: { arbitro: { select: arbitroPublico } } },
         mvpJugador: true,
+        // El marcador lee las reglas de la liga (registraMvp, tipo RAPIDA…).
+        categoria: { include: { liga: true } },
       },
     });
     if (!partido) throw new NotFoundException(`Partido ${id} no encontrado`);

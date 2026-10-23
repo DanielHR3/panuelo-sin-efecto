@@ -23,6 +23,9 @@ import type {
   TipoEvento,
 } from "@/lib/types";
 import { ActionModal } from "./ActionModal";
+import { ConfirmModal } from "./ConfirmModal";
+import { reabiertoParaCorregir } from "./corregir";
+import { CorregirPanel } from "./CorregirPanel";
 import { describirEvento } from "./describe";
 import { CLOSED, flowReducer, opcionesDefplay, type TeamSide } from "./flow";
 import { playBeep, useHalfTimer, useHaptics, useScreenLock } from "./hooks";
@@ -89,6 +92,25 @@ async function postMvp(partidoId: string, jugadorId: string): Promise<void> {
   }
 }
 
+/** POST /rapido/partidos/:id/intercambiar-equipos. Mismo contrato de error que postEvento. */
+async function postIntercambiarEquipos(
+  partidoId: string,
+): Promise<{ equipoLocal: { nombre: string }; equipoVisitante: { nombre: string } }> {
+  const res = await fetch(`/api/proxy/rapido/partidos/${partidoId}/intercambiar-equipos`, {
+    method: "POST",
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    message?: string | string[];
+    equipoLocal?: { nombre: string };
+    equipoVisitante?: { nombre: string };
+  };
+  if (!res.ok || !data.equipoLocal || !data.equipoVisitante) {
+    const message = Array.isArray(data.message) ? data.message.join(", ") : data.message;
+    throw new Error(message ?? "No se pudieron intercambiar los equipos");
+  }
+  return { equipoLocal: data.equipoLocal, equipoVisitante: data.equipoVisitante };
+}
+
 const formatTime = (totalSecs: number) => {
   const m = Math.floor(totalSecs / 60).toString().padStart(2, "0");
   const s = (totalSecs % 60).toString().padStart(2, "0");
@@ -102,7 +124,15 @@ export default function ScoreboardClient({
   partido: PartidoConRoster;
   eventosIniciales: GameEvent[];
 }) {
-  const { equipoLocal, equipoVisitante } = partido;
+  // Los nombres viven en estado: "⇄ Los equipos estaban al revés" los
+  // intercambia sin recargar. Los ids (y con ellos el marcador) no cambian.
+  const [nombres, setNombres] = useState({
+    local: partido.equipoLocal.nombre,
+    visitante: partido.equipoVisitante.nombre,
+  });
+  const equipoLocal = { ...partido.equipoLocal, nombre: nombres.local };
+  const equipoVisitante = { ...partido.equipoVisitante, nombre: nombres.visitante };
+  const [confirmacion, setConfirmacion] = useState<"reabrir" | "intercambiar" | null>(null);
   const [estado, setEstado] = useState<EstadoPartido>(partido.estado);
   const [marcador, setMarcador] = useState<Marcador>({
     local: partido.marcadorLocal,
@@ -130,6 +160,7 @@ export default function ScoreboardClient({
   });
 
   const finalizado = estado === "FINALIZADO";
+  const corrigiendo = reabiertoParaCorregir(estado, eventos);
   // HU-1.1: reglas de la liga. Si el detalle no trae la liga (no debería),
   // se asume el comportamiento completo para no ocultar nada por accidente.
   const liga = partido.categoria?.liga;
@@ -411,6 +442,43 @@ export default function ScoreboardClient({
     if (evento) await refrescarEstadoYMarcador();
   };
 
+  /** Reabre el partido finalizado para corregirlo. Si el servidor lo rechaza (p. ej. plazo de 48 h), el estado no cambia. */
+  const handleReabrir = async () => {
+    setConfirmacion(null);
+    if (!finalizado || pending) return;
+    vibrate([100, 50, 100]);
+    const evento = await ejecutar({ tipoEvento: "REABRIR_PARTIDO" });
+    if (evento) setEstado("EN_CURSO");
+  };
+
+  const handleAnular = (evento: GameEvent) => {
+    if (!corrigiendo || pending) return;
+    vibrate([50, 50, 50]);
+    void ejecutar({ tipoEvento: "ANULAR_EVENTO", eventoAnuladoId: evento.id });
+  };
+
+  const handleIntercambiar = async () => {
+    setConfirmacion(null);
+    if (pending) return;
+    vibrate([50, 50, 50]);
+    setPending(true);
+    setError(null);
+    try {
+      const r = await postIntercambiarEquipos(partido.id);
+      setNombres({ local: r.equipoLocal.nombre, visitante: r.equipoVisitante.nombre });
+    } catch (e) {
+      setError(
+        esErrorDeRed(e)
+          ? "Sin conexión: intenta intercambiar los equipos de nuevo cuando vuelva la señal"
+          : e instanceof Error
+            ? e.message
+            : "No se pudieron intercambiar los equipos",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
   const handleResetTimer = () => {
     vibrate();
     halfTimer.pause();
@@ -425,7 +493,13 @@ export default function ScoreboardClient({
             {partido.categoria?.liga.nombre} · {partido.categoria?.nombre}
           </span>
           <h1 className="font-extrabold text-2xl tracking-tight">
-            {finalizado ? "FINALIZADO" : estado === "EN_CURSO" ? "EN JUEGO" : "PROGRAMADO"}
+            {finalizado
+              ? "FINALIZADO"
+              : corrigiendo
+                ? "CORRIGIENDO"
+                : estado === "EN_CURSO"
+                  ? "EN JUEGO"
+                  : "PROGRAMADO"}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -449,7 +523,7 @@ export default function ScoreboardClient({
         </div>
       </header>
 
-      {!finalizado && (
+      {!finalizado && !corrigiendo && (
         <div className="glass-panel rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col min-w-0">
             <span className="text-xs font-bold uppercase tracking-widest opacity-60">Cronómetro de Mitad</span>
@@ -496,7 +570,7 @@ export default function ScoreboardClient({
         </div>
       )}
 
-      {!finalizado && halfTimer.remainingSeconds <= 120 && halfTimer.remainingSeconds > 0 && (
+      {!finalizado && !corrigiendo && halfTimer.remainingSeconds <= 120 && halfTimer.remainingSeconds > 0 && (
         <div className="text-center text-sm font-black text-red-500 animate-pulse bg-red-500/10 rounded-xl py-2">
           ⏰ ¡PAUSA DE LOS 2 MINUTOS!
         </div>
@@ -516,6 +590,32 @@ export default function ScoreboardClient({
         >
           📤 Compartir resultado
         </Link>
+      )}
+
+      {finalizado && (
+        <button
+          onClick={() => { vibrate(); setConfirmacion("reabrir"); }}
+          disabled={pending}
+          className="text-center text-base font-black bg-foreground/5 border-2 border-foreground/15 rounded-xl py-3 animate-pop disabled:opacity-40"
+        >
+          ✏️ Corregir resultado
+        </button>
+      )}
+
+      {corrigiendo && (
+        <div className="text-center text-sm font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 rounded-xl py-2">
+          ✏️ Corrigiendo resultado
+        </div>
+      )}
+
+      {(finalizado || corrigiendo) && liga?.tipo === "RAPIDA" && (
+        <button
+          onClick={() => { vibrate(); setConfirmacion("intercambiar"); }}
+          disabled={pending}
+          className="text-center text-sm font-black bg-foreground/5 rounded-xl py-3 animate-pop disabled:opacity-40"
+        >
+          ⇄ Los equipos estaban al revés
+        </button>
       )}
 
       {finalizado && registraMvp && (
@@ -545,6 +645,16 @@ export default function ScoreboardClient({
         <div className="text-center text-sm font-semibold text-foreground/70 bg-foreground/5 rounded-xl py-2">
           📝 {describirEvento(lastEvent, equipoLocal, equipoVisitante)}
         </div>
+      )}
+
+      {corrigiendo && (
+        <CorregirPanel
+          eventos={eventos}
+          equipoLocal={equipoLocal}
+          equipoVisitante={equipoVisitante}
+          disabled={pending}
+          onAnular={handleAnular}
+        />
       )}
 
       <div className="flex-1 flex flex-col gap-4">
@@ -587,6 +697,36 @@ export default function ScoreboardClient({
           ↩️ Undo
         </button>
       </div>
+
+      {corrigiendo && (
+        <button
+          onClick={() => void handleFinMitad()}
+          disabled={pending}
+          className="text-center text-lg font-black bg-panuelo text-[#1a1600] rounded-2xl py-4 shadow-lg animate-pop mb-6 disabled:opacity-40"
+        >
+          🏁 Finalizar de nuevo
+        </button>
+      )}
+
+      {confirmacion === "reabrir" && (
+        <ConfirmModal
+          titulo="¿Reabrir el partido para corregirlo?"
+          detalle="Podrás anular eventos y registrar los correctos. Al terminar, toca “Finalizar de nuevo”."
+          confirmarTexto="Reabrir"
+          onConfirm={() => void handleReabrir()}
+          onCancel={() => setConfirmacion(null)}
+        />
+      )}
+
+      {confirmacion === "intercambiar" && (
+        <ConfirmModal
+          titulo="¿Intercambiar los equipos?"
+          detalle={`Arriba quedará “${nombres.visitante}” y abajo “${nombres.local}”. Los puntos de cada fila no se mueven.`}
+          confirmarTexto="Intercambiar"
+          onConfirm={() => void handleIntercambiar()}
+          onCancel={() => setConfirmacion(null)}
+        />
+      )}
 
       <ActionModal
         flow={flow}

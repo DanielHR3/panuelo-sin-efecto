@@ -181,6 +181,15 @@ describe('PartidosService', () => {
     expect(arg.include.mvpJugador).toBe(true);
   });
 
+  it('findOne() incluye la categoría con su liga (tipo y reglas para el marcador)', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
+    await service.findOne('p1');
+    const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
+      { include: { categoria: unknown } },
+    ];
+    expect(arg.include.categoria).toEqual({ include: { liga: true } });
+  });
+
   it('findAllByCategoria() incluye las asignaciones con los datos públicos del árbitro', async () => {
     mockPrisma.partido.findMany.mockResolvedValueOnce([]);
     await service.findAllByCategoria('cat-1');

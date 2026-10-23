@@ -28,7 +28,7 @@ const ANULABLES: readonly TipoEvento[] = [
   "SACK",
 ];
 
-function esAnulable(tipo: string): boolean {
+export function esAnulable(tipo: string): boolean {
   return (ANULABLES as readonly string[]).includes(tipo);
 }
 
@@ -43,13 +43,21 @@ export interface EventoParaMarcador {
   eventoAnuladoId?: string | null;
 }
 
-/** Mismo algoritmo que backend/src/eventos/marcador.ts (marcarCancelaciones): ver ese archivo para el detalle. */
-export function calcularMarcador(
-  eventos: EventoParaMarcador[],
-  equipoLocalId: string,
-  equipoVisitanteId: string,
-): Marcador {
-  const pila: { original: EventoParaMarcador; cancelado: boolean }[] = [];
+interface Anotado<T> {
+  original: T;
+  cancelado: boolean;
+}
+
+/**
+ * Pila de cancelación de UNDO_LAST_ACTION y ANULAR_EVENTO. Mismo algoritmo
+ * que backend/src/eventos/marcador.ts (marcarCancelaciones): ver ese archivo
+ * para el detalle. Es el único lugar del web donde vive — calcularMarcador y
+ * filtrarEventosVigentes la reutilizan para no divergir nunca.
+ */
+function marcarCancelaciones<T extends { id: string; tipoEvento: string; eventoAnuladoId?: string | null }>(
+  eventos: T[],
+): Anotado<T>[] {
+  const pila: Anotado<T>[] = [];
 
   for (const ev of eventos) {
     if (ev.tipoEvento === "UNDO_LAST_ACTION") {
@@ -71,14 +79,34 @@ export function calcularMarcador(
     const objetivo = pila.find((b) => b.original.id === a.original.eventoAnuladoId);
     if (objetivo && esAnulable(objetivo.original.tipoEvento)) objetivo.cancelado = true;
   }
+  return pila;
+}
 
+/** Deriva el marcador de la bitácora (cálculo optimista offline). */
+export function calcularMarcador(
+  eventos: EventoParaMarcador[],
+  equipoLocalId: string,
+  equipoVisitanteId: string,
+): Marcador {
   let local = 0;
   let visitante = 0;
-  for (const { original: ev, cancelado } of pila) {
+  for (const { original: ev, cancelado } of marcarCancelaciones(eventos)) {
     const puntos = puntosDe(ev.tipoEvento);
     if (cancelado || puntos === 0) continue;
     if (ev.equipoId === equipoLocalId) local += puntos;
     else if (ev.equipoId === equipoVisitanteId) visitante += puntos;
   }
   return { local, visitante };
+}
+
+/**
+ * Subconjunto de la bitácora que sigue vigente (no deshecho por un UNDO ni
+ * anulado), en el orden original. Espejo de filtrarEventosVigentes del backend.
+ */
+export function filtrarEventosVigentes<
+  T extends { id: string; tipoEvento: string; eventoAnuladoId?: string | null },
+>(eventos: T[]): T[] {
+  return marcarCancelaciones(eventos)
+    .filter((a) => !a.cancelado)
+    .map((a) => a.original);
 }
