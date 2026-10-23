@@ -33,6 +33,7 @@ import { playBeep, useHalfTimer, useHaptics, useScreenLock } from "./hooks";
 import { LockOverlay } from "./LockOverlay";
 import { MvpModal } from "./MvpModal";
 import { debePedirMvp } from "./mvp";
+import { postIntercambiarEquipos } from "./intercambiar";
 
 const LOCK_TIMEOUT_MS = 60_000;
 
@@ -91,25 +92,6 @@ async function postMvp(partidoId: string, jugadorId: string): Promise<void> {
     const message = Array.isArray(data.message) ? data.message.join(", ") : data.message;
     throw new Error(message ?? "No se pudo guardar el MVP");
   }
-}
-
-/** POST /rapido/partidos/:id/intercambiar-equipos. Mismo contrato de error que postEvento. */
-async function postIntercambiarEquipos(
-  partidoId: string,
-): Promise<{ equipoLocal: { nombre: string }; equipoVisitante: { nombre: string } }> {
-  const res = await fetch(`/api/proxy/rapido/partidos/${partidoId}/intercambiar-equipos`, {
-    method: "POST",
-  });
-  const data = (await res.json().catch(() => ({}))) as {
-    message?: string | string[];
-    equipoLocal?: { nombre: string };
-    equipoVisitante?: { nombre: string };
-  };
-  if (!res.ok || !data.equipoLocal || !data.equipoVisitante) {
-    const message = Array.isArray(data.message) ? data.message.join(", ") : data.message;
-    throw new Error(message ?? "No se pudieron intercambiar los equipos");
-  }
-  return { equipoLocal: data.equipoLocal, equipoVisitante: data.equipoVisitante };
 }
 
 const formatTime = (totalSecs: number) => {
@@ -471,7 +453,7 @@ export default function ScoreboardClient({
     setPending(true);
     setError(null);
     try {
-      const r = await postIntercambiarEquipos(partido.id);
+      const r = await postIntercambiarEquipos(partido.id, nombres.local);
       setNombres({ local: r.equipoLocal.nombre, visitante: r.equipoVisitante.nombre });
     } catch (e) {
       setError(
