@@ -38,7 +38,12 @@ interface RegistrarEventoResponse {
   duplicado: boolean;
 }
 
-type EventoPayload = { tipoEvento: TipoEvento; equipoId?: string; jugadorId?: string };
+type EventoPayload = {
+  tipoEvento: TipoEvento;
+  equipoId?: string;
+  jugadorId?: string;
+  eventoAnuladoId?: string;
+};
 
 /**
  * `fetch` lanza TypeError cuando la petición ni siquiera pudo salir (sin
@@ -176,6 +181,7 @@ export default function ScoreboardClient({
           tipoEvento: item.tipoEvento,
           ...(item.equipoId ? { equipoId: item.equipoId } : {}),
           ...(item.jugadorId ? { jugadorId: item.jugadorId } : {}),
+          ...(item.eventoAnuladoId ? { eventoAnuladoId: item.eventoAnuladoId } : {}),
         };
         const { evento, marcador: m } = await postEvento(partido.id, payload, item.clientEventId);
         await eliminarPendiente(item.clientEventId);
@@ -317,6 +323,7 @@ export default function ScoreboardClient({
         tipoEvento: payload.tipoEvento,
         equipoId: payload.equipoId ?? null,
         jugadorId: payload.jugadorId ?? null,
+        eventoAnuladoId: payload.eventoAnuladoId ?? null,
       };
       await encolarEvento({ clientEventId, partidoId: partido.id, ...payload, createdAt: Date.now() });
       setEventos((prev) => {

@@ -28,6 +28,7 @@ function evento(partial: Partial<GameEvent>): GameEvent {
     equipoId: null,
     jugadorId: null,
     arbitroId: "ref",
+    eventoAnuladoId: null,
     ...partial,
   };
 }

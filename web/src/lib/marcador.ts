@@ -15,26 +15,47 @@ const PUNTOS_POR_TIPO: Partial<Record<TipoEvento, number>> = {
   PICK_SIX: 6,
 };
 
+/** Espejo de ANULABLES en backend/src/eventos/evento.constants.ts. */
+const ANULABLES: readonly TipoEvento[] = [
+  "TD",
+  "PAT1",
+  "PAT2",
+  "SAFETY",
+  "PICK_SIX",
+  "FALTA_PERSONAL",
+  "EXPULSION",
+  "INTERCEPCION",
+  "SACK",
+];
+
+function esAnulable(tipo: string): boolean {
+  return (ANULABLES as readonly string[]).includes(tipo);
+}
+
 function puntosDe(tipo: string): number {
   return PUNTOS_POR_TIPO[tipo as TipoEvento] ?? 0;
 }
 
 export interface EventoParaMarcador {
+  id: string;
   tipoEvento: string;
   equipoId: string | null;
+  eventoAnuladoId?: string | null;
 }
 
-/** Mismo algoritmo que backend/src/eventos/marcador.ts: ver ese archivo para el detalle de UNDO_LAST_ACTION. */
+/** Mismo algoritmo que backend/src/eventos/marcador.ts (marcarCancelaciones): ver ese archivo para el detalle. */
 export function calcularMarcador(
   eventos: EventoParaMarcador[],
   equipoLocalId: string,
   equipoVisitanteId: string,
 ): Marcador {
-  const pila: { equipoId: string | null; puntos: number; cancelado: boolean }[] = [];
+  const pila: { original: EventoParaMarcador; cancelado: boolean }[] = [];
 
   for (const ev of eventos) {
     if (ev.tipoEvento === "UNDO_LAST_ACTION") {
       for (let i = pila.length - 1; i >= 0; i--) {
+        // Tope: un UNDO no atraviesa una reapertura.
+        if (pila[i].original.tipoEvento === "REABRIR_PARTIDO") break;
         if (!pila[i].cancelado) {
           pila[i].cancelado = true;
           break;
@@ -42,15 +63,22 @@ export function calcularMarcador(
       }
       continue;
     }
-    pila.push({ equipoId: ev.equipoId, puntos: puntosDe(ev.tipoEvento), cancelado: false });
+    pila.push({ original: ev, cancelado: false });
+  }
+  // Segundo recorrido: las anulaciones vigentes cancelan a su objetivo anulable.
+  for (const a of pila) {
+    if (a.original.tipoEvento !== "ANULAR_EVENTO" || a.cancelado) continue;
+    const objetivo = pila.find((b) => b.original.id === a.original.eventoAnuladoId);
+    if (objetivo && esAnulable(objetivo.original.tipoEvento)) objetivo.cancelado = true;
   }
 
   let local = 0;
   let visitante = 0;
-  for (const e of pila) {
-    if (e.cancelado || e.puntos === 0) continue;
-    if (e.equipoId === equipoLocalId) local += e.puntos;
-    else if (e.equipoId === equipoVisitanteId) visitante += e.puntos;
+  for (const { original: ev, cancelado } of pila) {
+    const puntos = puntosDe(ev.tipoEvento);
+    if (cancelado || puntos === 0) continue;
+    if (ev.equipoId === equipoLocalId) local += puntos;
+    else if (ev.equipoId === equipoVisitanteId) visitante += puntos;
   }
   return { local, visitante };
 }

@@ -20,6 +20,7 @@ export interface Categoria {
 export interface Liga {
   id: string;
   nombre: string;
+  tipo: "LIGA" | "RAPIDA";
   /** HU-1.1: URL pública del logo, o null si la liga no tiene. */
   logoUrl: string | null;
   /** HU-1.1: la PWA exige elegir MVP al finalizar cada partido. */
@@ -111,6 +112,8 @@ export const TIPOS_EVENTO = [
   "INTERCEPCION",
   "SACK",
   "UNDO_LAST_ACTION",
+  "REABRIR_PARTIDO",
+  "ANULAR_EVENTO",
 ] as const;
 export type TipoEvento = (typeof TIPOS_EVENTO)[number];
 
@@ -123,6 +126,7 @@ export interface GameEvent {
   equipoId: string | null;
   jugadorId: string | null;
   arbitroId: string;
+  eventoAnuladoId: string | null;
 }
 
 export interface Marcador {
