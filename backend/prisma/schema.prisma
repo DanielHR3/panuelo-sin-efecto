@@ -21,6 +21,11 @@ model Usuario {
   // el email es sintético (no se puede iniciar sesión con contraseña).
   esInvitado         Boolean              @default(false)
 
+  // Liga a la que pertenece una cuenta de ÁRBITRO (la da de alta su dueño).
+  // Nula para admins, invitados y árbitros anteriores a esta regla.
+  ligaArbitroId      String?
+  ligaArbitro        Liga?                @relation("ArbitrosLiga", fields: [ligaArbitroId], references: [id], onDelete: SetNull)
+
   ligasPropias       Liga[]               @relation("PropietarioLiga")
   asignaciones       AsignacionArbitral[]
   eventosRegistrados EventoPartido[]      @relation("ArbitroRegistrador")
@@ -51,6 +56,7 @@ model Liga {
 
   propietarioId String
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
+  arbitros      Usuario[]   @relation("ArbitrosLiga")
   
   categorias    Categoria[]
   

@@ -1,4 +1,5 @@
 import { authedFetch } from "@/lib/server-api";
+import { arbitrosAsignables } from "@/lib/arbitros";
 import type {
   Liga,
   Equipo,
@@ -52,6 +53,7 @@ export default async function PartidosPage({
   const categoria = categoriaId
     ? ligas.flatMap((l) => l.categorias).find((c) => c.id === categoriaId)
     : undefined;
+  const ligaId = categoria ? ligas.find((l) => l.categorias.some((c) => c.id === categoria.id))?.id : undefined;
 
   // Solo se consulta una categoría que esté entre las ligas visibles: una
   // ajena (p. ej. un ?categoriaId= pegado a mano) respondería 403 y tiraría
@@ -224,6 +226,7 @@ export default async function PartidosPage({
                   partido={partido}
                   equipos={equipos}
                   arbitros={arbitros}
+                  ligaId={ligaId ?? ""}
                   discrepancias={discrepanciasPorPartido.get(partido.id) ?? []}
                   jugadoresPorId={jugadoresPorId}
                 />
@@ -240,12 +243,14 @@ function PartidoCard({
   partido,
   equipos,
   arbitros,
+  ligaId,
   discrepancias,
   jugadoresPorId,
 }: {
   partido: Partido;
   equipos: Equipo[];
   arbitros: Usuario[];
+  ligaId: string;
   discrepancias: Discrepancia[];
   jugadoresPorId: Map<string, Jugador>;
 }) {
@@ -253,7 +258,7 @@ function PartidoCard({
   const visitante = equipos.find((e) => e.id === partido.equipoVisitanteId)?.nombre ?? "?";
   const siguiente = ESTADO_SIGUIENTE[partido.estado];
   const asignados = new Set((partido.asignaciones ?? []).map((a) => a.arbitroId));
-  const disponibles = arbitros.filter((a) => !asignados.has(a.id));
+  const disponibles = arbitrosAsignables(arbitros, asignados, ligaId);
   const pendientes = discrepancias.filter((d) => d.estado === "PENDIENTE");
   const resueltas = discrepancias.filter((d) => d.estado === "RESUELTA");
 

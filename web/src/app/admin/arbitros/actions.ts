@@ -14,6 +14,7 @@ export async function crearArbitro(_prev: ActionState, formData: FormData): Prom
   const nombre = readString(formData, "nombre");
   const email = readString(formData, "email");
   const password = readString(formData, "password");
+  const ligaId = readString(formData, "ligaId");
   if (!nombre || !email || !password) {
     return { error: "Nombre, email y contraseña son obligatorios" };
   }
@@ -23,7 +24,7 @@ export async function crearArbitro(_prev: ActionState, formData: FormData): Prom
   try {
     await authedFetch("/usuarios", {
       method: "POST",
-      body: JSON.stringify({ nombre, email, password, rol: "ARBITRO" }),
+      body: JSON.stringify({ nombre, email, password, rol: "ARBITRO", ...(ligaId ? { ligaId } : {}) }),
     });
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "No se pudo crear el árbitro" };

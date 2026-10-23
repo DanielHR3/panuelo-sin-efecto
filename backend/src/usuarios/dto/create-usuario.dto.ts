@@ -1,8 +1,10 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsIn,
   IsNotEmpty,
+  IsOptional,
+  IsUUID,
   IsString,
   MinLength,
 } from 'class-validator';
@@ -26,4 +28,12 @@ export class CreateUsuarioDto {
   @ApiProperty({ enum: ROLES, example: 'LIGA_ADMIN' })
   @IsIn(ROLES, { message: `El rol debe ser uno de: ${ROLES.join(', ')}` })
   rol: Rol;
+
+  @ApiPropertyOptional({
+    description:
+      'Liga a la que pertenece el árbitro. Obligatoria para un LIGA_ADMIN (una de sus ligas); solo válida con rol ARBITRO.',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'ligaId no es válido' })
+  ligaId?: string;
 }

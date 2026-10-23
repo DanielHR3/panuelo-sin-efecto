@@ -16,10 +16,13 @@ export class UsuariosController {
   constructor(private readonly usuariosService: UsuariosService) {}
 
   @Post()
-  @Roles('SUPERADMIN')
-  @ApiOperation({ summary: 'Alta de usuario (solo SUPERADMIN)' })
-  create(@Body() dto: CreateUsuarioDto) {
-    return this.usuariosService.create(dto);
+  @Roles('SUPERADMIN', 'LIGA_ADMIN')
+  @ApiOperation({
+    summary:
+      'Alta de usuario. SUPERADMIN: cualquier rol. LIGA_ADMIN: solo árbitros de una de sus ligas (ligaId obligatorio).',
+  })
+  create(@Body() dto: CreateUsuarioDto, @CurrentUser() user: AuthUser) {
+    return this.usuariosService.create(dto, user);
   }
 
   @Get()
@@ -27,7 +30,7 @@ export class UsuariosController {
   @ApiOperation({
     summary:
       'Lista usuarios. SUPERADMIN: todos (filtrables por rol), con email. ' +
-      'LIGA_ADMIN: solo árbitros con cuenta (sin invitados) y sin email, para asignarlos.',
+      'LIGA_ADMIN: solo los árbitros de sus ligas (con email y liga), para asignarlos.',
   })
   findAll(@CurrentUser() user: AuthUser, @Query() query: FindUsuariosQueryDto) {
     return this.usuariosService.findAll(user, query.rol);
