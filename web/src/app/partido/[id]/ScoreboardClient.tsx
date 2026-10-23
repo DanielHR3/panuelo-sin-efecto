@@ -24,7 +24,7 @@ import type {
 } from "@/lib/types";
 import { ActionModal } from "./ActionModal";
 import { ConfirmModal } from "./ConfirmModal";
-import { reabiertoParaCorregir } from "./corregir";
+import { reabiertoParaCorregir, undoSinEfecto } from "./corregir";
 import { CorregirPanel } from "./CorregirPanel";
 import { describirEvento } from "./describe";
 import { CLOSED, flowReducer, opcionesDefplay, type TeamSide } from "./flow";
@@ -173,6 +173,9 @@ export default function ScoreboardClient({
     null;
   const equipoIdDe = (team: TeamSide) => (team === "local" ? equipoLocal.id : equipoVisitante.id);
   const lastEvent = eventos.length > 0 ? eventos[eventos.length - 1] : null;
+  // Recién reabierto (o todo lo corregido ya deshecho): el UNDO no cruza la
+  // reapertura, así que el botón no haría nada.
+  const undoDeshabilitado = finalizado || pending || eventos.length === 0 || undoSinEfecto(eventos);
 
   /**
    * Reintenta, en orden, los eventos que quedaron sin sincronizar. Se corta
@@ -355,6 +358,7 @@ export default function ScoreboardClient({
         equipoId: payload.equipoId ?? null,
         jugadorId: payload.jugadorId ?? null,
         eventoAnuladoId: payload.eventoAnuladoId ?? null,
+        descartado: false,
       };
       await encolarEvento({ clientEventId, partidoId: partido.id, ...payload, createdAt: Date.now() });
       setEventos((prev) => {
@@ -395,7 +399,7 @@ export default function ScoreboardClient({
   };
 
   const handleUndo = () => {
-    if (finalizado || pending || eventos.length === 0) return;
+    if (undoDeshabilitado) return;
     vibrate([50, 50, 50]);
     void ejecutar({ tipoEvento: "UNDO_LAST_ACTION" });
   };
@@ -691,7 +695,7 @@ export default function ScoreboardClient({
         </button>
         <button
           onClick={handleUndo}
-          disabled={finalizado || pending || eventos.length === 0}
+          disabled={undoDeshabilitado}
           className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm disabled:opacity-30"
         >
           ↩️ Undo

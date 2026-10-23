@@ -13,6 +13,7 @@ import type {
 import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
+import { descarteBloqueado } from "./discrepancias";
 import {
   crearPartido,
   eliminarPartido,
@@ -462,23 +463,47 @@ function DiscrepanciaRow({
   return (
     <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="flex flex-col gap-1">
-          <span className="font-bold">Evento A</span>
-          <span className="text-slate-500 dark:text-slate-400">{describirEvento(discrepancia.eventoA)}</span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="font-bold">Evento B</span>
-          <span className="text-slate-500 dark:text-slate-400">{describirEvento(discrepancia.eventoB)}</span>
-        </div>
+        {(["A", "B"] as const).map((lado) => {
+          const evento = lado === "A" ? discrepancia.eventoA : discrepancia.eventoB;
+          return (
+            <div key={lado} className="flex flex-col gap-1">
+              <span className="font-bold flex flex-wrap items-center gap-2">
+                Evento {lado}
+                {evento.anulado && <AnuladoBadge />}
+              </span>
+              <span
+                className={`text-slate-500 dark:text-slate-400 ${evento.anulado ? "line-through" : ""}`}
+              >
+                {describirEvento(evento)}
+              </span>
+            </div>
+          );
+        })}
       </div>
       <div className="flex flex-wrap gap-2">
         <ActionForm action={resolverDiscrepancia.bind(null, partidoId, discrepancia.id, "DESCARTAR_A")}>
-          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400">
+          <SubmitButton
+            disabled={descarteBloqueado(discrepancia, "A")}
+            title={
+              descarteBloqueado(discrepancia, "A")
+                ? "El otro evento ya fue anulado; descartar este dejaría la jugada sin registrar"
+                : undefined
+            }
+            className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             Descartar A
           </SubmitButton>
         </ActionForm>
         <ActionForm action={resolverDiscrepancia.bind(null, partidoId, discrepancia.id, "DESCARTAR_B")}>
-          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400">
+          <SubmitButton
+            disabled={descarteBloqueado(discrepancia, "B")}
+            title={
+              descarteBloqueado(discrepancia, "B")
+                ? "El otro evento ya fue anulado; descartar este dejaría la jugada sin registrar"
+                : undefined
+            }
+            className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             Descartar B
           </SubmitButton>
         </ActionForm>
@@ -489,6 +514,15 @@ function DiscrepanciaRow({
         </ActionForm>
       </div>
     </div>
+  );
+}
+
+/** Marca un evento que el árbitro anuló al corregir el partido (ANULAR_EVENTO). */
+function AnuladoBadge() {
+  return (
+    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-200">
+      Anulado
+    </span>
   );
 }
 

@@ -33,6 +33,12 @@ export interface Liga {
   updatedAt: string;
 }
 
+/** Columnas de la liga que expone GET /partidos/:id (ruta pública). */
+export type LigaDePartido = Pick<
+  Liga,
+  "id" | "nombre" | "logoUrl" | "tipo" | "registraMvp" | "registraIntercepciones"
+>;
+
 export interface CategoriaConEquipos extends Categoria {
   equipos: Equipo[];
 }
@@ -83,7 +89,7 @@ export interface Partido {
   equipoLocal?: Equipo;
   equipoVisitante?: Equipo;
   asignaciones?: AsignacionArbitral[];
-  categoria?: Categoria & { liga: Liga };
+  categoria?: Categoria & { liga: LigaDePartido };
   mvpJugadorId?: string | null;
   mvpJugador?: Jugador | null;
 }
@@ -127,6 +133,8 @@ export interface GameEvent {
   jugadorId: string | null;
   arbitroId: string;
   eventoAnuladoId: string | null;
+  /** Descartado por el admin al resolver una discrepancia: no cuenta para el marcador. */
+  descartado: boolean;
 }
 
 export interface Marcador {
@@ -142,6 +150,8 @@ export interface EventoDiscrepancia {
   arbitroId: string;
   timestamp: string;
   descartado: boolean;
+  /** Ya no cuenta para el marcador por un ANULAR_EVENTO (o UNDO) posterior; calculado al leer. */
+  anulado: boolean;
 }
 
 export type AccionResolucion = "DESCARTAR_A" | "DESCARTAR_B" | "MANTENER_AMBOS";

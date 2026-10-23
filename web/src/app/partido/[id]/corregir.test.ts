@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameEvent, TipoEvento } from "@/lib/types";
-import { eventosAnulables, reabiertoParaCorregir } from "./corregir";
+import { eventosAnulables, reabiertoParaCorregir, undoSinEfecto } from "./corregir";
 
 let n = 0;
 function ev(
@@ -18,6 +18,7 @@ function ev(
     jugadorId: null,
     arbitroId: "a1",
     eventoAnuladoId: null,
+    descartado: false,
     ...extra,
   };
 }
@@ -64,6 +65,52 @@ describe("eventosAnulables", () => {
       ev("FALTA_PERSONAL", { id: "c" }),
     ];
     expect(eventosAnulables(eventos).map((e) => e.id)).toEqual(["c", "b", "a"]);
+  });
+});
+
+describe("eventosAnulables: descartados", () => {
+  it("no ofrece anular un evento descartado al resolver una discrepancia", () => {
+    const eventos = [
+      ev("TD", { id: "td1" }),
+      ev("TD", { id: "td2", descartado: true }),
+      ev("FIN_MITAD", { equipoId: null }),
+      ev("REABRIR_PARTIDO", { equipoId: null }),
+    ];
+    expect(eventosAnulables(eventos).map((e) => e.id)).toEqual(["td1"]);
+  });
+
+  it("calcula la vigencia sin los descartados (como el servidor)", () => {
+    // Si el descartado entrara en la pila, el UNDO lo cancelaría a él y td1
+    // seguiría vigente; el servidor no lo ve, así que el UNDO cancela td1.
+    const eventos = [
+      ev("TD", { id: "td1" }),
+      ev("TD", { id: "td2", descartado: true }),
+      ev("UNDO_LAST_ACTION", { equipoId: null }),
+      ev("TD", { id: "td3" }),
+      ev("REABRIR_PARTIDO", { equipoId: null }),
+    ];
+    expect(eventosAnulables(eventos).map((e) => e.id)).toEqual(["td3"]);
+  });
+});
+
+describe("undoSinEfecto", () => {
+  it("es true si el último evento vigente es REABRIR_PARTIDO", () => {
+    expect(undoSinEfecto([ev("TD"), ev("FIN_MITAD"), ev("REABRIR_PARTIDO")])).toBe(true);
+  });
+
+  it("es true si todo lo posterior a la reapertura ya se deshizo", () => {
+    expect(
+      undoSinEfecto([ev("TD"), ev("REABRIR_PARTIDO"), ev("TD"), ev("UNDO_LAST_ACTION")]),
+    ).toBe(true);
+  });
+
+  it("es false si hay algo deshacible tras la reapertura", () => {
+    expect(undoSinEfecto([ev("TD"), ev("REABRIR_PARTIDO"), ev("TD")])).toBe(false);
+  });
+
+  it("es false en un partido normal y sin eventos", () => {
+    expect(undoSinEfecto([ev("INICIO_MITAD"), ev("TD")])).toBe(false);
+    expect(undoSinEfecto([])).toBe(false);
   });
 });
 

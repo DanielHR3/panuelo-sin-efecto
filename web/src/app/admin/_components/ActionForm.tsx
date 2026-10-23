@@ -38,14 +38,19 @@ export function SubmitButton({
   children,
   pendingLabel = "Guardando…",
   className,
+  disabled = false,
+  title,
 }: {
   children: ReactNode;
   pendingLabel?: string;
   className?: string;
+  /** Deshabilita el envío aunque no haya uno en curso (p. ej. acción no permitida). */
+  disabled?: boolean;
+  title?: string;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className={className}>
+    <button type="submit" disabled={pending || disabled} title={title} className={className}>
       {pending ? pendingLabel : children}
     </button>
   );
