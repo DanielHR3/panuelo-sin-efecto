@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { esperarServidor, reintentoRecienteFallido } from "./esperar-servidor";
+import { debeMostrarError, esperarServidor, reintentoRecienteFallido } from "./esperar-servidor";
 
 const ok = () => new Response("Hello", { status: 200 });
 const caido = () => new Response("", { status: 503 });
@@ -143,5 +143,18 @@ describe("reintentoRecienteFallido", () => {
   it("es false si nunca se reintentó o fue hace rato", () => {
     expect(reintentoRecienteFallido(10_000, null)).toBe(false);
     expect(reintentoRecienteFallido(100_000, 2_000)).toBe(false);
+  });
+});
+
+describe("debeMostrarError", () => {
+  it("muestra el error si la página falló justo después de reintentar", () => {
+    expect(debeMostrarError({ ahora: 10_000, ultimoReintento: 2_000, reintentosAuto: 1 })).toBe(true);
+  });
+  it("muestra el error tras 3 reintentos automáticos aunque cada fallo tarde más de 15 s", () => {
+    expect(debeMostrarError({ ahora: 500_000, ultimoReintento: 2_000, reintentosAuto: 3 })).toBe(true);
+  });
+  it("sigue esperando a la API en los demás casos", () => {
+    expect(debeMostrarError({ ahora: 10_000, ultimoReintento: null, reintentosAuto: 0 })).toBe(false);
+    expect(debeMostrarError({ ahora: 500_000, ultimoReintento: 2_000, reintentosAuto: 2 })).toBe(false);
   });
 });

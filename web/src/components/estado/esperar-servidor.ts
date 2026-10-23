@@ -98,3 +98,22 @@ export const VENTANA_REINTENTO_MS = 15_000;
 export function reintentoRecienteFallido(ahora: number, ultimoReintento: number | null): boolean {
   return ultimoReintento !== null && ahora - ultimoReintento < VENTANA_REINTENTO_MS;
 }
+
+/**
+ * Tope de reintentos automáticos por sesión de pestaña: si un fallo real
+ * tarda más que la ventana en aparecer, el ciclo esperar → reintentar →
+ * fallar se cortaría solo por tiempo y podría repetirse sin fin.
+ */
+export const MAX_REINTENTOS_AUTO = 3;
+
+/** ¿El boundary debe mostrar el error en vez de esperar otra vez a la API? */
+export function debeMostrarError(estado: {
+  ahora: number;
+  ultimoReintento: number | null;
+  reintentosAuto: number;
+}): boolean {
+  return (
+    reintentoRecienteFallido(estado.ahora, estado.ultimoReintento) ||
+    estado.reintentosAuto >= MAX_REINTENTOS_AUTO
+  );
+}
