@@ -17,14 +17,16 @@ export class CategoriasService {
     return this.prisma.categoria.create({ data: { ...dto, ligaId } });
   }
 
-  async findAllByLiga(ligaId: string) {
+  async findAllByLiga(ligaId: string, user: AuthUser) {
+    await this.ownership.assertCanManageLiga(ligaId, user);
     return this.prisma.categoria.findMany({
       where: { ligaId },
       orderBy: { nombre: 'asc' },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthUser) {
+    await this.ownership.assertCanManageCategoria(id, user);
     const categoria = await this.prisma.categoria.findUnique({
       where: { id },
       include: { equipos: true },

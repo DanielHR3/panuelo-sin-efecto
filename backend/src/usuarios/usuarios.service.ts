@@ -8,12 +8,25 @@ import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../common/hashing';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import type { Rol } from '../common/roles';
+import { AuthUser } from '../common/decorators/current-user.decorator';
 
 /** Campos seguros para devolver por API (nunca el passwordHash). */
 const publicSelect = {
   id: true,
   nombre: true,
   email: true,
+  rol: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.UsuarioSelect;
+
+/**
+ * Lo que ve un LIGA_ADMIN de un árbitro para asignarlo: sin email (no lo
+ * necesita y son datos de contacto de terceros).
+ */
+const arbitroAsignableSelect = {
+  id: true,
+  nombre: true,
   rol: true,
   createdAt: true,
   updatedAt: true,
@@ -53,14 +66,23 @@ export class UsuariosService {
   }
 
   /**
-   * Lista usuarios, opcionalmente filtrados por rol. Pensado para que un
-   * LIGA_ADMIN o SUPERADMIN encuentre árbitros a la hora de asignarlos a un
-   * partido; nunca expone el passwordHash.
+   * Lista usuarios; nunca expone el passwordHash.
+   * - SUPERADMIN: todos (o los del rol pedido), con email e invitados.
+   * - Cualquier otro (LIGA_ADMIN): solo los árbitros con cuenta, sin email
+   *   y sin invitados de partidos rápidos, sea cual sea el `rol` pedido.
+   *   Es lo que necesita para asignar árbitros a sus partidos.
    */
-  async findAll(rol?: Rol) {
+  async findAll(user: AuthUser, rol?: Rol) {
+    if (user.rol === 'SUPERADMIN') {
+      return this.prisma.usuario.findMany({
+        where: rol ? { rol } : undefined,
+        select: publicSelect,
+        orderBy: { nombre: 'asc' },
+      });
+    }
     return this.prisma.usuario.findMany({
-      where: rol ? { rol } : undefined,
-      select: publicSelect,
+      where: { rol: 'ARBITRO', esInvitado: false },
+      select: arbitroAsignableSelect,
       orderBy: { nombre: 'asc' },
     });
   }

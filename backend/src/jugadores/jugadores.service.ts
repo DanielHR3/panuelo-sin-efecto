@@ -17,14 +17,16 @@ export class JugadoresService {
     return this.prisma.jugador.create({ data: { ...dto, equipoId } });
   }
 
-  async findAllByEquipo(equipoId: string) {
+  async findAllByEquipo(equipoId: string, user: AuthUser) {
+    await this.ownership.assertCanManageEquipo(equipoId, user);
     return this.prisma.jugador.findMany({
       where: { equipoId },
       orderBy: { numeroJersey: 'asc' },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthUser) {
+    await this.ownership.assertCanManageJugador(id, user);
     const jugador = await this.prisma.jugador.findUnique({ where: { id } });
     if (!jugador) throw new NotFoundException(`Jugador ${id} no encontrado`);
     return jugador;

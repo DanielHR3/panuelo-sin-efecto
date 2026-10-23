@@ -31,7 +31,11 @@ const mockPrisma = {
 const mockOwnership = {
   assertCanManageCategoria: jest.fn(),
   assertCanManagePartido: jest.fn(),
+  assertCanReadPartido: jest.fn(),
 };
+
+/** Árbitro público: nunca el email (ni el passwordHash). */
+const ARBITRO_PUBLICO = { select: { id: true, nombre: true } };
 
 const baseDto = {
   fechaHora: '2026-09-20T18:00:00.000Z',
@@ -128,8 +132,28 @@ describe('PartidosService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('rechaza asignar a un árbitro invitado de partido rápido', async () => {
+      mockPrisma.usuario.findUnique.mockResolvedValueOnce({
+        rol: 'ARBITRO',
+        esInvitado: true,
+      });
+      await expect(
+        service.asignarArbitro(
+          'p1',
+          { arbitroId: 'guest-1', rolEnCampo: 'Referee' },
+          user,
+        ),
+      ).rejects.toThrow(
+        new BadRequestException('No se puede asignar a un árbitro invitado'),
+      );
+      expect(mockPrisma.asignacionArbitral.upsert).not.toHaveBeenCalled();
+    });
+
     it('hace upsert de la asignación para un ARBITRO válido', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValueOnce({ rol: 'ARBITRO' });
+      mockPrisma.usuario.findUnique.mockResolvedValueOnce({
+        rol: 'ARBITRO',
+        esInvitado: false,
+      });
       mockPrisma.asignacionArbitral.upsert.mockResolvedValueOnce({});
       await service.asignarArbitro(
         'p1',
@@ -144,6 +168,21 @@ describe('PartidosService', () => {
     });
   });
 
+  it('findAsignados() solo expone columnas públicas de la liga (sin propietarioId)', async () => {
+    mockPrisma.partido.findMany.mockResolvedValueOnce([]);
+    await service.findAsignados('ref-1');
+    const [arg] = mockPrisma.partido.findMany.mock.calls[0] as [
+      { include: { categoria: { include: { liga: { select: object } } } } },
+    ];
+    expect(arg.include.categoria.include.liga.select).not.toHaveProperty(
+      'propietarioId',
+    );
+    expect(arg.include.categoria.include.liga.select).toHaveProperty(
+      'nombre',
+      true,
+    );
+  });
+
   it('findAsignados() filtra por asignaciones.some.arbitroId', async () => {
     mockPrisma.partido.findMany.mockResolvedValueOnce([]);
     await service.findAsignados('ref-1');
@@ -156,25 +195,41 @@ describe('PartidosService', () => {
 
   it('findOne() lanza NotFound si no existe', async () => {
     mockPrisma.partido.findUnique.mockResolvedValueOnce(null);
-    await expect(service.findOne('x')).rejects.toBeInstanceOf(
+    await expect(service.findOne('x', user)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 
-  it('findOne() incluye las asignaciones con los datos públicos del árbitro', async () => {
+  it('findOne() valida la lectura (dueño, árbitro asignado o SUPERADMIN)', async () => {
     mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
-    await service.findOne('p1');
+    await service.findOne('p1', user);
+    expect(mockOwnership.assertCanReadPartido).toHaveBeenCalledWith('p1', user);
+  });
+
+  it('findOne() de un partido ajeno propaga el 403 sin consultarlo', async () => {
+    mockOwnership.assertCanReadPartido.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+    await expect(service.findOne('p1', user)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(mockPrisma.partido.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('findOne() incluye las asignaciones con el árbitro sin email', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
+    await service.findOne('p1', user);
     const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
       { include: { asignaciones: unknown } },
     ];
     expect(arg.include.asignaciones).toEqual({
-      include: { arbitro: { select: { id: true, nombre: true, email: true } } },
+      include: { arbitro: ARBITRO_PUBLICO },
     });
   });
 
   it('findOne() incluye el jugador elegido como MVP', async () => {
     mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
-    await service.findOne('p1');
+    await service.findOne('p1', user);
     const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
       { include: { mvpJugador: unknown } },
     ];
@@ -183,7 +238,7 @@ describe('PartidosService', () => {
 
   it('findOne() incluye la categoría con su liga (tipo y reglas para el marcador)', async () => {
     mockPrisma.partido.findUnique.mockResolvedValueOnce({ id: 'p1' });
-    await service.findOne('p1');
+    await service.findOne('p1', user);
     const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
       { include: { categoria: unknown } },
     ];
@@ -203,15 +258,44 @@ describe('PartidosService', () => {
     });
   });
 
-  it('findAllByCategoria() incluye las asignaciones con los datos públicos del árbitro', async () => {
+  it('findAllByCategoria() valida la propiedad de la categoría', async () => {
     mockPrisma.partido.findMany.mockResolvedValueOnce([]);
-    await service.findAllByCategoria('cat-1');
+    await service.findAllByCategoria('cat-1', user);
+    expect(mockOwnership.assertCanManageCategoria).toHaveBeenCalledWith(
+      'cat-1',
+      user,
+    );
+  });
+
+  it('findAllByCategoria() incluye las asignaciones con el árbitro sin email', async () => {
+    mockPrisma.partido.findMany.mockResolvedValueOnce([]);
+    await service.findAllByCategoria('cat-1', user);
     const [arg] = mockPrisma.partido.findMany.mock.calls[0] as [
       { include: { asignaciones: unknown } },
     ];
     expect(arg.include.asignaciones).toEqual({
-      include: { arbitro: { select: { id: true, nombre: true, email: true } } },
+      include: { arbitro: ARBITRO_PUBLICO },
     });
+  });
+
+  it('listarAsignaciones() valida la lectura y no expone el email', async () => {
+    mockPrisma.asignacionArbitral.findMany.mockResolvedValueOnce([]);
+    await service.listarAsignaciones('p1', user);
+    expect(mockOwnership.assertCanReadPartido).toHaveBeenCalledWith('p1', user);
+    expect(mockPrisma.asignacionArbitral.findMany).toHaveBeenCalledWith({
+      where: { partidoId: 'p1' },
+      include: { arbitro: ARBITRO_PUBLICO },
+    });
+  });
+
+  it('listarAsignaciones() de un partido ajeno propaga el 403', async () => {
+    mockOwnership.assertCanReadPartido.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+    await expect(service.listarAsignaciones('p1', user)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(mockPrisma.asignacionArbitral.findMany).not.toHaveBeenCalled();
   });
 
   describe('setMvp', () => {

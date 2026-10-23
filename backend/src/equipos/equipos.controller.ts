@@ -11,7 +11,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EquiposService } from './equipos.service';
 import { CreateEquipoDto } from './dto/create-equipo.dto';
 import { UpdateEquipoDto } from './dto/update-equipo.dto';
-import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -35,18 +34,25 @@ export class EquiposController {
     return this.equiposService.create(categoriaId, dto, user);
   }
 
-  @Public()
   @Get('categorias/:categoriaId/equipos')
-  @ApiOperation({ summary: 'Lista los equipos de una categoría' })
-  findAllByCategoria(@Param('categoriaId') categoriaId: string) {
-    return this.equiposService.findAllByCategoria(categoriaId);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Lista los equipos de una categoría (dueño o SUPERADMIN)',
+  })
+  findAllByCategoria(
+    @Param('categoriaId') categoriaId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.equiposService.findAllByCategoria(categoriaId, user);
   }
 
-  @Public()
   @Get('equipos/:id')
-  @ApiOperation({ summary: 'Detalle de un equipo con su roster' })
-  findOne(@Param('id') id: string) {
-    return this.equiposService.findOne(id);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Detalle de un equipo con su roster (dueño o SUPERADMIN)',
+  })
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.equiposService.findOne(id, user);
   }
 
   @Patch('equipos/:id')

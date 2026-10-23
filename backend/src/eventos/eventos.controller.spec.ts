@@ -7,7 +7,7 @@ const user: AuthUser = { sub: 'ref-1', email: 'r@r.mx', rol: 'ARBITRO' };
 const mockService = {
   registrar: jest.fn(),
   listar: jest.fn(),
-  getMarcador: jest.fn(),
+  leerMarcador: jest.fn(),
 };
 
 describe('EventosController', () => {
@@ -32,8 +32,13 @@ describe('EventosController', () => {
     expect(mockService.registrar).toHaveBeenCalledWith('p1', dto, user);
   });
 
-  it('marcador() delega con el partidoId', () => {
-    void controller.marcador('p1');
-    expect(mockService.getMarcador).toHaveBeenCalledWith('p1');
+  it('listar() delega con el partidoId y el usuario', () => {
+    void controller.listar('p1', user);
+    expect(mockService.listar).toHaveBeenCalledWith('p1', user);
+  });
+
+  it('marcador() delega con el partidoId y el usuario', () => {
+    void controller.marcador('p1', user);
+    expect(mockService.leerMarcador).toHaveBeenCalledWith('p1', user);
   });
 });

@@ -32,8 +32,9 @@ describe('UsuariosController', () => {
     expect(mockUsuariosService.findById).toHaveBeenCalledWith('u1');
   });
 
-  it('findAll() delega el filtro de rol de la query', () => {
-    void controller.findAll({ rol: 'ARBITRO' });
-    expect(mockUsuariosService.findAll).toHaveBeenCalledWith('ARBITRO');
+  it('findAll() delega el usuario y el filtro de rol de la query', () => {
+    const user: AuthUser = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' };
+    void controller.findAll(user, { rol: 'ARBITRO' });
+    expect(mockUsuariosService.findAll).toHaveBeenCalledWith(user, 'ARBITRO');
   });
 });

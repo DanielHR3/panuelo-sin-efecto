@@ -1,9 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { LigasService } from './ligas.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { AuthUser } from '../common/decorators/current-user.decorator';
 
 const mockPrisma = {
   liga: {
@@ -14,7 +19,13 @@ const mockPrisma = {
     delete: jest.fn(),
   },
 };
-const mockOwnership = { assertCanManageLiga: jest.fn() };
+const mockOwnership = {
+  assertCanManageLiga: jest.fn(),
+  // Regla real: el filtro es puro y no toca Prisma.
+  filtroLigasVisibles: jest.fn((u: AuthUser) =>
+    OwnershipService.prototype.filtroLigasVisibles.call(null, u),
+  ),
+};
 
 describe('LigasService', () => {
   let service: LigasService;
@@ -145,13 +156,54 @@ describe('LigasService', () => {
     });
   });
 
+  describe('findAll', () => {
+    const ligaAdmin = { sub: 'admin-1', email: 'a@x.mx', rol: 'LIGA_ADMIN' };
+
+    it('un LIGA_ADMIN solo lista sus ligas y nunca las RAPIDA', async () => {
+      mockPrisma.liga.findMany.mockResolvedValueOnce([]);
+      await service.findAll(ligaAdmin);
+      expect(mockPrisma.liga.findMany).toHaveBeenCalledWith({
+        where: { propietarioId: 'admin-1', tipo: 'LIGA' },
+        include: { categorias: true },
+      });
+    });
+
+    it('un SUPERADMIN lista todas las ligas', async () => {
+      mockPrisma.liga.findMany.mockResolvedValueOnce([]);
+      await service.findAll(superadmin);
+      expect(mockPrisma.liga.findMany).toHaveBeenCalledWith({
+        where: {},
+        include: { categorias: true },
+      });
+    });
+  });
+
   describe('findOne', () => {
+    it('valida la propiedad antes de leer', async () => {
+      mockPrisma.liga.findUnique.mockResolvedValueOnce({ id: 'l1' });
+      await service.findOne('l1', arbitro);
+      expect(mockOwnership.assertCanManageLiga).toHaveBeenCalledWith(
+        'l1',
+        arbitro,
+      );
+    });
+
+    it('propaga el 403 de una liga ajena sin consultarla', async () => {
+      mockOwnership.assertCanManageLiga.mockRejectedValueOnce(
+        new ForbiddenException(),
+      );
+      await expect(service.findOne('l1', arbitro)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(mockPrisma.liga.findUnique).not.toHaveBeenCalled();
+    });
+
     it('lanza NotFoundException cuando la liga no existe', async () => {
       mockPrisma.liga.findUnique.mockResolvedValueOnce(null);
 
-      await expect(service.findOne('inexistente')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('inexistente', superadmin),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

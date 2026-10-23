@@ -56,13 +56,19 @@ export class LigasService {
     }
   }
 
-  async findAll() {
+  /**
+   * SUPERADMIN: todas. Cualquier otro usuario: solo las suyas y nunca los
+   * contenedores RAPIDA de los partidos rápidos.
+   */
+  async findAll(user: AuthUser) {
     return this.prisma.liga.findMany({
+      where: this.ownership.filtroLigasVisibles(user),
       include: { categorias: true },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthUser) {
+    await this.ownership.assertCanManageLiga(id, user);
     const liga = await this.prisma.liga.findUnique({
       where: { id },
       include: { categorias: true },

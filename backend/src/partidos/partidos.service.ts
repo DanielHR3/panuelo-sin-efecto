@@ -14,14 +14,20 @@ import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 import { SetMvpDto } from './dto/set-mvp.dto';
 import { ORDEN_ESTADO, type EstadoPartido } from './partido.constants';
 
-/** Campos públicos del árbitro asignado (nunca el passwordHash). */
+/**
+ * Campos del árbitro asignado que viajan con un partido: nunca el
+ * passwordHash ni el email (un correo no hace falta para mostrar quién
+ * pitó, y los invitados de partidos rápidos llevan uno sintético).
+ */
 const arbitroPublico = {
   id: true,
   nombre: true,
-  email: true,
 } satisfies Prisma.UsuarioSelect;
 
-/** Columnas de la liga expuestas en el detalle público de un partido. */
+/**
+ * Columnas de la liga que viajan con un partido (detalle y "mis partidos"):
+ * nunca propietarioId ni marcas internas.
+ */
 const ligaPublica = {
   id: true,
   nombre: true,
@@ -72,7 +78,8 @@ export class PartidosService {
     });
   }
 
-  async findAllByCategoria(categoriaId: string) {
+  async findAllByCategoria(categoriaId: string, user: AuthUser) {
+    await this.ownership.assertCanManageCategoria(categoriaId, user);
     return this.prisma.partido.findMany({
       where: { categoriaId },
       orderBy: { fechaHora: 'asc' },
@@ -88,7 +95,8 @@ export class PartidosService {
    * Detalle completo, con el roster de ambos equipos: es lo que necesita el
    * marcador del árbitro para el selector de jugadores.
    */
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthUser) {
+    await this.ownership.assertCanReadPartido(id, user);
     const partido = await this.prisma.partido.findUnique({
       where: { id },
       include: {
@@ -100,9 +108,8 @@ export class PartidosService {
         },
         asignaciones: { include: { arbitro: { select: arbitroPublico } } },
         mvpJugador: true,
-        // El marcador lee las reglas de la liga (registraMvp, tipo RAPIDA…).
-        // Ruta @Public: solo las columnas que necesita el cliente, nunca
-        // propietarioId ni marcas internas de la liga.
+        // El marcador lee las reglas de la liga (registraMvp, tipo RAPIDA…):
+        // solo las columnas que necesita el cliente.
         categoria: { include: { liga: { select: ligaPublica } } },
       },
     });
@@ -118,7 +125,7 @@ export class PartidosService {
       include: {
         equipoLocal: true,
         equipoVisitante: true,
-        categoria: { include: { liga: true } },
+        categoria: { include: { liga: { select: ligaPublica } } },
       },
     });
   }
@@ -154,8 +161,8 @@ export class PartidosService {
 
   // --- Asignación arbitral ---
 
-  async listarAsignaciones(partidoId: string) {
-    await this.findOne(partidoId); // 404 si no existe
+  async listarAsignaciones(partidoId: string, user: AuthUser) {
+    await this.ownership.assertCanReadPartido(partidoId, user); // 404/403
     return this.prisma.asignacionArbitral.findMany({
       where: { partidoId },
       include: { arbitro: { select: arbitroPublico } },
@@ -171,11 +178,18 @@ export class PartidosService {
 
     const arbitro = await this.prisma.usuario.findUnique({
       where: { id: dto.arbitroId },
-      select: { rol: true },
+      select: { rol: true, esInvitado: true },
     });
     if (!arbitro || arbitro.rol !== 'ARBITRO') {
       throw new BadRequestException(
         `El usuario ${dto.arbitroId} no existe o no tiene rol ARBITRO`,
+      );
+    }
+    // HU-2.7: los invitados solo existen para sus partidos rápidos; no se
+    // pueden asignar a partidos de una liga.
+    if (arbitro.esInvitado) {
+      throw new BadRequestException(
+        'No se puede asignar a un árbitro invitado',
       );
     }
 

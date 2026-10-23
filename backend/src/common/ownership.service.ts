@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from './decorators/current-user.decorator';
 
@@ -14,6 +15,12 @@ import { AuthUser } from './decorators/current-user.decorator';
  * Cada método resuelve el `propietarioId` de la liga dueña del recurso en una
  * sola consulta y lo compara con el usuario autenticado. Lanza NotFound si el
  * recurso no existe y Forbidden si no es el propietario.
+ *
+ * Lecturas: las mismas reglas protegen los GET de liga, categoría, equipo y
+ * jugador (y sus listados), así que esos servicios reutilizan los
+ * `assertCanManage*`. Un partido es la excepción: también lo puede leer el
+ * árbitro asignado (`assertCanReadPartido`). Un árbitro invitado es dueño de
+ * su liga RAPIDA, así que lee sus partidos rápidos por esa vía.
  */
 @Injectable()
 export class OwnershipService {
@@ -115,5 +122,42 @@ export class OwnershipService {
       'Partido',
       partidoId,
     );
+  }
+
+  /**
+   * Lectura de un partido (detalle, eventos, marcador, asignaciones):
+   * SUPERADMIN, dueño de la liga o árbitro asignado. 404 si no existe.
+   */
+  async assertCanReadPartido(partidoId: string, user: AuthUser): Promise<void> {
+    const partido = await this.prisma.partido.findUnique({
+      where: { id: partidoId },
+      select: {
+        categoria: { select: { liga: { select: { propietarioId: true } } } },
+        asignaciones: {
+          where: { arbitroId: user.sub },
+          select: { arbitroId: true },
+        },
+      },
+    });
+    if (!partido) {
+      throw new NotFoundException(`Partido ${partidoId} no encontrado`);
+    }
+    if (partido.asignaciones.length > 0) return;
+    this.assertOwner(
+      partido.categoria.liga.propietarioId,
+      user,
+      'Partido',
+      partidoId,
+    );
+  }
+
+  /**
+   * Filtro para `GET /ligas`: un SUPERADMIN ve todas; cualquier otro usuario
+   * solo las ligas de su propiedad y nunca los contenedores RAPIDA de los
+   * partidos rápidos.
+   */
+  filtroLigasVisibles(user: AuthUser): Prisma.LigaWhereInput {
+    if (user.rol === 'SUPERADMIN') return {};
+    return { propietarioId: user.sub, tipo: 'LIGA' };
   }
 }

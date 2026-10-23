@@ -4,6 +4,14 @@ import { Prisma } from '@prisma/client';
 import { UsuariosService } from './usuarios.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { verifyPassword } from '../common/hashing';
+import { AuthUser } from '../common/decorators/current-user.decorator';
+
+const superadmin: AuthUser = {
+  sub: 'boss',
+  email: 's@x.mx',
+  rol: 'SUPERADMIN',
+};
+const ligaAdmin: AuthUser = { sub: 'adm', email: 'a@x.mx', rol: 'LIGA_ADMIN' };
 
 const mockPrisma = {
   usuario: {
@@ -80,19 +88,51 @@ describe('UsuariosService', () => {
   });
 
   describe('findAll', () => {
-    it('sin rol, consulta sin filtro de where', async () => {
+    it('SUPERADMIN sin rol: consulta sin filtro de where, con email', async () => {
       mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
-      await service.findAll();
+      await service.findAll(superadmin);
       expect(mockPrisma.usuario.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: undefined }),
+        expect.objectContaining({
+          where: undefined,
+          select: expect.objectContaining({ email: true }) as object,
+        }),
       );
     });
 
-    it('con rol, filtra por ese rol', async () => {
+    it('SUPERADMIN con rol: filtra por ese rol (invitados incluidos)', async () => {
       mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
-      await service.findAll('ARBITRO');
+      await service.findAll(superadmin, 'ARBITRO');
       expect(mockPrisma.usuario.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { rol: 'ARBITRO' } }),
+      );
+    });
+
+    it('LIGA_ADMIN: solo árbitros con cuenta (sin invitados) y sin email', async () => {
+      mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
+      await service.findAll(ligaAdmin, 'ARBITRO');
+      const [[arg]] = mockPrisma.usuario.findMany.mock.calls as [
+        [{ where: unknown; select: Record<string, unknown> }],
+      ];
+      expect(arg.where).toEqual({ rol: 'ARBITRO', esInvitado: false });
+      expect(arg.select).not.toHaveProperty('email');
+      expect(arg.select).not.toHaveProperty('passwordHash');
+      expect(arg.select).toMatchObject({ id: true, nombre: true });
+    });
+
+    it('LIGA_ADMIN: ignora el filtro de rol y nunca lista admins', async () => {
+      mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
+      await service.findAll(ligaAdmin);
+      expect(mockPrisma.usuario.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { rol: 'ARBITRO', esInvitado: false },
+        }),
+      );
+      mockPrisma.usuario.findMany.mockResolvedValueOnce([]);
+      await service.findAll(ligaAdmin, 'SUPERADMIN');
+      expect(mockPrisma.usuario.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: { rol: 'ARBITRO', esInvitado: false },
+        }),
       );
     });
   });

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { RegistrarEventoDto } from './dto/registrar-evento.dto';
 import {
@@ -22,7 +23,10 @@ const MAX_TIMESTAMP_FUTURO_MS = 5 * 60_000;
 
 @Injectable()
 export class EventosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ownership: OwnershipService,
+  ) {}
 
   async registrar(
     partidoId: string,
@@ -245,14 +249,22 @@ export class EventosService {
     }
   }
 
-  async listar(partidoId: string) {
-    await this.assertPartidoExiste(partidoId);
+  /** Bitácora completa: árbitro asignado, dueño de la liga o SUPERADMIN. */
+  async listar(partidoId: string, user: AuthUser) {
+    await this.ownership.assertCanReadPartido(partidoId, user); // 404/403
     return this.prisma.eventoPartido.findMany({
       where: { partidoId },
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
     });
   }
 
+  /** `GET .../marcador`: misma autorización de lectura que la bitácora. */
+  async leerMarcador(partidoId: string, user: AuthUser): Promise<Marcador> {
+    await this.ownership.assertCanReadPartido(partidoId, user);
+    return this.getMarcador(partidoId);
+  }
+
+  /** Uso interno (sin autorización): el llamador ya validó el acceso. */
   async getMarcador(partidoId: string): Promise<Marcador> {
     const partido = await this.prisma.partido.findUnique({
       where: { id: partidoId },
@@ -276,15 +288,6 @@ export class EventosService {
       partido.equipoLocalId,
       partido.equipoVisitanteId,
     );
-  }
-
-  private async assertPartidoExiste(partidoId: string): Promise<void> {
-    const existe = await this.prisma.partido.findUnique({
-      where: { id: partidoId },
-      select: { id: true },
-    });
-    if (!existe)
-      throw new NotFoundException(`Partido ${partidoId} no encontrado`);
   }
 
   private assertPuedeRegistrar(

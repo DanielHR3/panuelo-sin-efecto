@@ -13,7 +13,6 @@ import { CreatePartidoDto } from './dto/create-partido.dto';
 import { UpdatePartidoDto } from './dto/update-partido.dto';
 import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 import { SetMvpDto } from './dto/set-mvp.dto';
-import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -37,11 +36,16 @@ export class PartidosController {
     return this.partidosService.create(categoriaId, dto, user);
   }
 
-  @Public()
   @Get('categorias/:categoriaId/partidos')
-  @ApiOperation({ summary: 'Lista los partidos de una categoría' })
-  findAllByCategoria(@Param('categoriaId') categoriaId: string) {
-    return this.partidosService.findAllByCategoria(categoriaId);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Lista los partidos de una categoría (dueño o SUPERADMIN)',
+  })
+  findAllByCategoria(
+    @Param('categoriaId') categoriaId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.partidosService.findAllByCategoria(categoriaId, user);
   }
 
   @Get('partidos/asignados')
@@ -55,13 +59,15 @@ export class PartidosController {
     return this.partidosService.findAsignados(user.sub);
   }
 
-  @Public()
   @Get('partidos/:id')
+  @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Detalle de un partido (equipos con roster, árbitros)',
+    summary:
+      'Detalle de un partido (equipos con roster, árbitros sin email). ' +
+      'Solo el árbitro asignado, el dueño de la liga o un SUPERADMIN.',
   })
-  findOne(@Param('id') id: string) {
-    return this.partidosService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.partidosService.findOne(id, user);
   }
 
   @Patch('partidos/:id')
@@ -99,11 +105,14 @@ export class PartidosController {
     return this.partidosService.setMvp(id, dto, user);
   }
 
-  @Public()
   @Get('partidos/:id/asignaciones')
-  @ApiOperation({ summary: 'Árbitros asignados a un partido' })
-  listarAsignaciones(@Param('id') id: string) {
-    return this.partidosService.listarAsignaciones(id);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Árbitros asignados a un partido (sin email). Solo el árbitro asignado, el dueño de la liga o un SUPERADMIN.',
+  })
+  listarAsignaciones(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.partidosService.listarAsignaciones(id, user);
   }
 
   @Post('partidos/:id/asignaciones')

@@ -132,8 +132,10 @@ export class PublicoService {
 
   /** Una categoría completa: tabla, todos los resultados y más líderes. */
   async categoria(id: string) {
-    const cat = await this.prisma.categoria.findUnique({
-      where: { id },
+    // Las categorías de ligas RAPIDA (partidos rápidos de un invitado) no
+    // son públicas: listarían todos los partidos rápidos de esa persona.
+    const cat = await this.prisma.categoria.findFirst({
+      where: { id, liga: { tipo: 'LIGA' } },
       select: {
         id: true,
         nombre: true,
@@ -150,8 +152,9 @@ export class PublicoService {
 
   /** Perfil público de un jugador con sus estadísticas (HU-3.1). */
   async jugador(id: string) {
-    const jugador = await this.prisma.jugador.findUnique({
-      where: { id },
+    // Igual que categoria(): un jugador de partido rápido no tiene perfil público.
+    const jugador = await this.prisma.jugador.findFirst({
+      where: { id, equipo: { categoria: { liga: { tipo: 'LIGA' } } } },
       select: {
         id: true,
         nombre: true,
@@ -280,15 +283,21 @@ export class PublicoService {
     const { equipoLocalId, equipoVisitanteId, ...publico } = resto;
     void equipoLocalId;
     void equipoVisitanteId;
+    // Un partido RAPIDA se comparte por enlace, pero sin los ids de su
+    // categoría/liga contenedora: con ellos se llegaría a los demás partidos
+    // rápidos del mismo invitado.
+    const esRapida = categoria.liga.tipo === 'RAPIDA';
+    const liga = {
+      nombre: categoria.liga.nombre,
+      logoUrl: categoria.liga.logoUrl,
+      esRapida,
+    };
     return {
       ...publico,
-      categoria: { id: categoria.id, nombre: categoria.nombre },
-      liga: {
-        id: categoria.liga.id,
-        nombre: categoria.liga.nombre,
-        logoUrl: categoria.liga.logoUrl,
-        esRapida: categoria.liga.tipo === 'RAPIDA',
-      },
+      categoria: esRapida
+        ? { nombre: categoria.nombre }
+        : { id: categoria.id, nombre: categoria.nombre },
+      liga: esRapida ? liga : { id: categoria.liga.id, ...liga },
       mvp: mvpJugador,
       arbitros: asignaciones.map((a) => ({
         nombre: a.arbitro.nombre,

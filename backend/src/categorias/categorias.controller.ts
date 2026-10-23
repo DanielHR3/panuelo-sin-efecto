@@ -11,7 +11,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CategoriasService } from './categorias.service';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { UpdateCategoriaDto } from './dto/update-categoria.dto';
-import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -35,18 +34,25 @@ export class CategoriasController {
     return this.categoriasService.create(ligaId, dto, user);
   }
 
-  @Public()
   @Get('ligas/:ligaId/categorias')
-  @ApiOperation({ summary: 'Lista las categorías de una liga' })
-  findAllByLiga(@Param('ligaId') ligaId: string) {
-    return this.categoriasService.findAllByLiga(ligaId);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Lista las categorías de una liga (dueño o SUPERADMIN)',
+  })
+  findAllByLiga(
+    @Param('ligaId') ligaId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.categoriasService.findAllByLiga(ligaId, user);
   }
 
-  @Public()
   @Get('categorias/:id')
-  @ApiOperation({ summary: 'Detalle de una categoría con sus equipos' })
-  findOne(@Param('id') id: string) {
-    return this.categoriasService.findOne(id);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Detalle de una categoría con sus equipos (dueño o SUPERADMIN)',
+  })
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.categoriasService.findOne(id, user);
   }
 
   @Patch('categorias/:id')
