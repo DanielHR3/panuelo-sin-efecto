@@ -79,7 +79,10 @@ export default async function ArbitrosPage() {
               </div>
               <div>
                 <p className="font-semibold text-sm">{arbitro.nombre}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{arbitro.email}</p>
+                {/* Solo un SUPERADMIN recibe el email; a un LIGA_ADMIN la API no lo manda. */}
+                {arbitro.email && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{arbitro.email}</p>
+                )}
               </div>
             </div>
           ))}

@@ -3,7 +3,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { apiFetch } from "@/lib/api";
+import { proxyFetch } from "@/lib/proxy-fetch";
 import { calcularMarcador } from "@/lib/marcador";
 import {
   contarPendientes,
@@ -192,8 +192,8 @@ export default function ScoreboardClient({
   const refrescarEstadoYMarcador = async () => {
     try {
       const [fresco, m] = await Promise.all([
-        apiFetch<{ estado: EstadoPartido }>(`/partidos/${partido.id}`),
-        apiFetch<Marcador>(`/partidos/${partido.id}/marcador`),
+        proxyFetch<{ estado: EstadoPartido }>(`/partidos/${partido.id}`),
+        proxyFetch<Marcador>(`/partidos/${partido.id}/marcador`),
       ]);
       setEstado(fresco.estado);
       setMarcador(m);

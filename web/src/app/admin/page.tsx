@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
 import { authedFetch } from "@/lib/server-api";
 import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
 import type { Liga, Equipo, EquipoConRoster, Partido } from "@/lib/types";
@@ -16,7 +15,7 @@ const STAT_ACCENT = {
 
 export default async function AdminDashboard() {
   const [ligas, yo] = await Promise.all([
-    apiFetch<Liga[]>("/ligas"),
+    authedFetch<Liga[]>("/ligas"),
     authedFetch<{ nombre: string }>("/usuarios/me").catch(() => null),
   ]);
   const categorias = ligas.flatMap((l) => l.categorias);
@@ -25,13 +24,13 @@ export default async function AdminDashboard() {
   // recién arrancada es aceptable; si esto crece, lo correcto es mover el
   // conteo a un endpoint /stats agregado en el backend.
   const [equiposPorCategoria, partidosPorCategoria] = await Promise.all([
-    Promise.all(categorias.map((c) => apiFetch<Equipo[]>(`/categorias/${c.id}/equipos`))),
-    Promise.all(categorias.map((c) => apiFetch<Partido[]>(`/categorias/${c.id}/partidos`))),
+    Promise.all(categorias.map((c) => authedFetch<Equipo[]>(`/categorias/${c.id}/equipos`))),
+    Promise.all(categorias.map((c) => authedFetch<Partido[]>(`/categorias/${c.id}/partidos`))),
   ]);
   const equipos = equiposPorCategoria.flat();
   const partidos = partidosPorCategoria.flat();
   const jugadoresPorEquipo = await Promise.all(
-    equipos.map((e) => apiFetch<EquipoConRoster>(`/equipos/${e.id}`)),
+    equipos.map((e) => authedFetch<EquipoConRoster>(`/equipos/${e.id}`)),
   );
   const totalJugadores = jugadoresPorEquipo.reduce((sum, e) => sum + e.jugadores.length, 0);
   const partidosPorJugar = partidos.filter((p) => p.estado !== "FINALIZADO").length;
