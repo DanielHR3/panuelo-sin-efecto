@@ -29,4 +29,5 @@ jobs:
           fi
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$HOOK")
           echo "Deploy hook -> HTTP $code"
-          test "$code" = "200" || test "$code" = "201"
+          # Render responde 202 Accepted al encolar el deploy.
+          case "$code" in 2??) ;; *) exit 1 ;; esac
