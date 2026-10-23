@@ -793,9 +793,9 @@ export default function ScoreboardClient({
   );
 }
 
-/** Botón cuadrado de solo ícono (bloqueo, tema, cronómetro): 48 px de lado. */
 const sinSuscripcion = () => () => {};
 
+/** Botón cuadrado de solo ícono (bloqueo, tema, cronómetro): 48 px de lado. */
 const BOTON_ICONO =
   "p-3 rounded-lg bg-panel-alterno border border-texto/15 text-2xl shadow-sm animate-pop";
 

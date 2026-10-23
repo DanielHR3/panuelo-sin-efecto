@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+// Subconjunto deliberado de rangos de emoji y dingbats (no es Unicode completo).
 const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{21C4}\u{2630}\u{2715}]/u;
 
 function archivosTsx(dir: string): string[] {

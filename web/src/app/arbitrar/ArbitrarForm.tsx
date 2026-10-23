@@ -86,7 +86,7 @@ export function ArbitrarForm() {
       </label>
 
       {error && (
-        <p role="alert" className="text-sm font-semibold text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm font-semibold text-peligro">
           {error}
         </p>
       )}

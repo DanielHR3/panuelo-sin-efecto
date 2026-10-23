@@ -124,8 +124,6 @@ export default function AdminShell({
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               className="flex-1 flex items-center justify-center gap-1.5 p-2 rounded-lg bg-panel-alterno border border-texto/10 text-xs font-display font-bold uppercase tracking-[0.06em]"
               aria-label="Cambiar tema"
-              // Respaldo: con `montado` servidor e hidratación ya coinciden.
-              suppressHydrationWarning
             >
               <Icono nombre={iconoTema} className="text-sm" />
               {etiquetaTema}
