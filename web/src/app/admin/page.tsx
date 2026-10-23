@@ -4,8 +4,15 @@ import { Icono, type NombreIcono } from "@/components/icons/Icono";
 import { ESTADO_BADGE, ESTADO_BADGE_BASE, ESTADO_LABEL } from "@/lib/estado-partido";
 import type { Liga, Equipo, EquipoConRoster, Partido } from "@/lib/types";
 import { CountUpNumber } from "./_components/CountUpNumber";
+import { avisoSuscripcion } from "@/lib/suscripcion";
 import { Vacio } from "./_components/Vacio";
 import { BOTON_PRIMARIO, ROTULO, TITULO_PAGINA } from "./_components/estilos";
+
+const PASOS: { href: string; icono: NombreIcono; texto: string }[] = [
+  { href: "/admin/equipos", icono: "escudo", texto: "Da de alta tus equipos" },
+  { href: "/admin/arbitros", icono: "silbato", texto: "Registra a tus árbitros" },
+  { href: "/admin/partidos", icono: "campo", texto: "Programa tus partidos" },
+];
 
 export default async function AdminDashboard() {
   const [ligas, yo] = await Promise.all([
@@ -29,6 +36,12 @@ export default async function AdminDashboard() {
   const totalJugadores = jugadoresPorEquipo.reduce((sum, e) => sum + e.jugadores.length, 0);
   const partidosPorJugar = partidos.filter((p) => p.estado !== "FINALIZADO").length;
 
+  const avisos = ligas.flatMap((liga) => {
+    const aviso = liga.suscripcion ? avisoSuscripcion(liga.suscripcion) : null;
+    return aviso ? [{ liga, aviso }] : [];
+  });
+  const enPrueba = ligas.some((l) => l.suscripcion?.estado === "PRUEBA");
+
   const recientes = [...partidos]
     .sort((a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime())
     .slice(0, 5);
@@ -47,6 +60,38 @@ export default async function AdminDashboard() {
           + Nueva liga
         </Link>
       </header>
+
+      {avisos.map(({ liga, aviso }) => (
+        <section
+          key={liga.id}
+          role={aviso.tono === "alerta" ? "alert" : "status"}
+          className={`panel p-4 sm:p-5 border-l-4 ${aviso.tono === "alerta" ? "border-l-peligro" : "border-l-panuelo"}`}
+        >
+          <p className={ROTULO}>{liga.nombre}</p>
+          <p className="titulo-estadio text-xl sm:text-2xl leading-tight mt-1">{aviso.titulo}</p>
+          <p className="text-sm text-suave mt-1">{aviso.detalle}</p>
+        </section>
+      ))}
+
+      {enPrueba && (
+        <section className="panel p-4 sm:p-5">
+          <h2 className="titulo-estadio text-xl mb-3">Arma tu liga en 3 pasos</h2>
+          <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {PASOS.map((paso, i) => (
+              <li key={paso.href}>
+                <Link
+                  href={paso.href}
+                  className="flex items-center gap-3 rounded-lg bg-panel-alterno px-4 py-3 min-h-12 font-semibold hover:ring-2 hover:ring-panuelo"
+                >
+                  <span className="font-display italic font-extrabold text-2xl text-panuelo-texto">{i + 1}</span>
+                  <Icono nombre={paso.icono} className="text-xl shrink-0" />
+                  {paso.texto}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6">
         <StatCard title="Ligas activas" value={ligas.length} icon="trofeo" delayMs={0} />
