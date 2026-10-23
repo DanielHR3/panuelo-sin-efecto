@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Icono } from "@/components/icons/Icono";
@@ -151,6 +151,8 @@ export default function ScoreboardClient({
 
   const vibrate = useHaptics();
   const { resolvedTheme, setTheme } = useTheme();
+  // Hasta montar se pinta el icono del estado claro (igual que el servidor).
+  const montado = useSyncExternalStore(sinSuscripcion, () => true, () => false);
   const screenLock = useScreenLock(LOCK_TIMEOUT_MS, { disabled: flow.step !== "closed" });
   const halfTimer = useHalfTimer(20, {
     thresholdSeconds: 120,
@@ -519,11 +521,8 @@ export default function ScoreboardClient({
             onClick={() => { vibrate(); setTheme(resolvedTheme === "dark" ? "light" : "dark"); }}
             className={BOTON_ICONO}
             aria-label="Cambiar tema"
-            // next-themes no conoce el tema en el servidor: el icono puede
-            // diferir al hidratar en modo oscuro; se acepta esa única diferencia.
-            suppressHydrationWarning
           >
-            <Icono nombre={resolvedTheme === "dark" ? "sol" : "luna"} />
+            <Icono nombre={montado && resolvedTheme === "dark" ? "sol" : "luna"} />
           </button>
         </div>
       </header>
@@ -795,6 +794,8 @@ export default function ScoreboardClient({
 }
 
 /** Botón cuadrado de solo ícono (bloqueo, tema, cronómetro): 48 px de lado. */
+const sinSuscripcion = () => () => {};
+
 const BOTON_ICONO =
   "p-3 rounded-lg bg-panel-alterno border border-texto/15 text-2xl shadow-sm animate-pop";
 
