@@ -9,7 +9,9 @@ export type NombreToken =
   | "panuelo"
   | "panuelo-texto"
   | "local"
-  | "visitante";
+  | "visitante"
+  /** Texto de acciones destructivas (eliminar, descartar, cerrar sesión). */
+  | "peligro";
 
 /**
  * Fuente única de los colores de "Transmisión de estadio". globals.css debe
@@ -28,6 +30,7 @@ export const TOKENS: Record<"oscuro" | "claro", Record<NombreToken, string>> = {
     "panuelo-texto": "#FFD23F",
     local: "#3473DA",
     visitante: "#D73D3D",
+    peligro: "#FF8A80",
   },
   claro: {
     fondo: "#F4F6FA",
@@ -41,5 +44,6 @@ export const TOKENS: Record<"oscuro" | "claro", Record<NombreToken, string>> = {
     "panuelo-texto": "#8A6A00",
     local: "#1D4ED8",
     visitante: "#B91C1C",
+    peligro: "#B91C1C",
   },
 };

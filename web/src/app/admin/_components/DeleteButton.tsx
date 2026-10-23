@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, type ReactNode } from "react";
 import { ActionState, SubmitButton } from "./ActionForm";
+import { BOTON_PELIGRO } from "./estilos";
 
 /**
  * Botón de borrado ligado a una Server Action ya "bindeada" con el id del
@@ -11,10 +12,13 @@ export function DeleteButton({
   action,
   label = "Eliminar",
   confirmMessage,
-  className = "text-red-500 hover:text-red-600 text-xs font-semibold",
+  ariaLabel,
+  className = `${BOTON_PELIGRO} px-2.5 py-1 text-xs`,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
-  label?: string;
+  /** Texto o ícono del botón; si es solo ícono, pasa `ariaLabel`. */
+  label?: ReactNode;
+  ariaLabel?: string;
   confirmMessage?: string;
   className?: string;
 }) {
@@ -27,11 +31,16 @@ export function DeleteButton({
       }}
       className="inline-flex flex-col items-end"
     >
-      <SubmitButton className={className} pendingLabel="Eliminando…">
+      <SubmitButton
+        className={className}
+        // Un botón de solo ícono no tiene espacio para "Eliminando…".
+        pendingLabel={typeof label === "string" ? "Eliminando…" : "…"}
+        ariaLabel={ariaLabel}
+      >
         {label}
       </SubmitButton>
       {state?.error && (
-        <p role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400 mt-1 text-right">
+        <p role="alert" className="text-xs font-semibold text-peligro mt-1 text-right">
           {state.error}
         </p>
       )}

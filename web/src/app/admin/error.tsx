@@ -1,5 +1,8 @@
 "use client";
 
+import { Icono } from "@/components/icons/Icono";
+import { BOTON_PRIMARIO } from "./_components/estilos";
+
 export default function AdminError({
   error,
   reset,
@@ -8,14 +11,11 @@ export default function AdminError({
   reset: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-      <span className="text-5xl">⚠️</span>
-      <h2 className="text-xl font-black">Algo salió mal</h2>
-      <p className="text-slate-500 dark:text-slate-400 max-w-md">{error.message}</p>
-      <button
-        onClick={reset}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
-      >
+    <div className="panel flex flex-col items-center justify-center py-20 px-6 gap-4 text-center">
+      <Icono nombre="alerta" className="text-5xl text-panuelo-texto" />
+      <h2 className="titulo-estadio text-3xl leading-none">Algo salió mal</h2>
+      <p className="text-suave max-w-md">{error.message}</p>
+      <button onClick={reset} className={BOTON_PRIMARIO}>
         Reintentar
       </button>
     </div>

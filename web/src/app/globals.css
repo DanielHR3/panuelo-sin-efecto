@@ -21,6 +21,7 @@
   --panuelo-texto: #8A6A00;
   --local: #1D4ED8;
   --visitante: #B91C1C;
+  --peligro: #B91C1C;
   --borde: rgba(10, 26, 51, 0.14);
 
   /* Alias heredados hasta que las pantallas migren. */
@@ -40,6 +41,7 @@
   --panuelo-texto: #FFD23F;
   --local: #3473DA;
   --visitante: #D73D3D;
+  --peligro: #FF8A80;
   --borde: rgba(238, 242, 248, 0.14);
 }
 
@@ -55,6 +57,7 @@
   --color-panuelo-texto: var(--panuelo-texto);
   --color-local: var(--local);
   --color-visitante: var(--visitante);
+  --color-peligro: var(--peligro);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-barlow);

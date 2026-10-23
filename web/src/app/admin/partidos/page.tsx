@@ -9,9 +9,21 @@ import type {
   EquipoConRoster,
   Jugador,
 } from "@/lib/types";
-import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
+import { ESTADO_BADGE, ESTADO_BADGE_BASE, ESTADO_LABEL } from "@/lib/estado-partido";
+import { Icono } from "@/components/icons/Icono";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
+import { Vacio } from "../_components/Vacio";
+import {
+  BOTON_PELIGRO,
+  BOTON_PRIMARIO,
+  BOTON_QUITAR,
+  BOTON_SECUNDARIO,
+  ETIQUETA,
+  INPUT,
+  ROTULO,
+  TITULO_PAGINA,
+} from "../_components/estilos";
 import { descarteBloqueado } from "./discrepancias";
 import {
   crearPartido,
@@ -96,22 +108,22 @@ export default async function PartidosPage({
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-black tracking-tight">Gestión de Partidos</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">
+        <h1 className={TITULO_PAGINA}>Gestión de Partidos</h1>
+        <p className="text-suave mt-2">
           Elige una categoría para programar y arbitrar sus partidos.
         </p>
       </header>
 
       <form
         method="GET"
-        className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col sm:flex-row gap-3 sm:items-end"
+        className="panel p-5 sm:p-6 flex flex-col sm:flex-row gap-3 sm:items-end"
       >
-        <label className="flex-1 flex flex-col gap-1.5 text-sm font-semibold">
+        <label className={`flex-1 ${ETIQUETA}`}>
           Categoría
           <select
             name="categoriaId"
             defaultValue={categoriaId ?? ""}
-            className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={INPUT}
           >
             <option value="">Selecciona una categoría…</option>
             {ligas.map((liga) => (
@@ -125,7 +137,7 @@ export default async function PartidosPage({
             ))}
           </select>
         </label>
-        <button className="px-5 py-3 rounded-xl bg-slate-100 dark:bg-zinc-800 font-semibold">
+        <button className={`px-5 py-3 ${BOTON_SECUNDARIO}`}>
           Ver
         </button>
       </form>
@@ -138,36 +150,36 @@ export default async function PartidosPage({
         <>
           <ActionForm
             action={crearPartido.bind(null, categoriaId)}
-            className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end"
+            className="panel p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end"
           >
-            <label className="flex flex-col gap-1.5 text-sm font-semibold lg:col-span-2">
+            <label className={`${ETIQUETA} lg:col-span-2`}>
               Fecha y hora
               <input
                 type="datetime-local"
                 name="fechaHora"
                 required
-                className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={INPUT}
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-semibold">
+            <label className={ETIQUETA}>
               Dificultad
               <select
                 name="dificultad"
                 defaultValue="REGULAR"
-                className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={INPUT}
               >
                 <option value="REGULAR">Regular</option>
                 <option value="MEDIO">Medio</option>
                 <option value="COMPLICADO">Complicado</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-semibold">
+            <label className={ETIQUETA}>
               Local
               <select
                 name="equipoLocalId"
                 required
                 defaultValue=""
-                className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={INPUT}
               >
                 <option value="" disabled>
                   Elige…
@@ -179,13 +191,13 @@ export default async function PartidosPage({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-semibold">
+            <label className={ETIQUETA}>
               Visitante
               <select
                 name="equipoVisitanteId"
                 required
                 defaultValue=""
-                className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={INPUT}
               >
                 <option value="" disabled>
                   Elige…
@@ -197,7 +209,7 @@ export default async function PartidosPage({
                 ))}
               </select>
             </label>
-            <SubmitButton className="lg:col-span-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all active:scale-95">
+            <SubmitButton className={`lg:col-span-5 ${BOTON_PRIMARIO}`}>
               + Programar partido
             </SubmitButton>
           </ActionForm>
@@ -246,28 +258,30 @@ function PartidoCard({
   const resueltas = discrepancias.filter((d) => d.estado === "RESUELTA");
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col gap-4">
+    <div className="panel p-5 sm:p-6 flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">
+          <p className={ROTULO}>
             {new Date(partido.fechaHora).toLocaleString("es-MX", {
               dateStyle: "medium",
               timeStyle: "short",
             })}
           </p>
-          <h3 className="font-bold text-lg">
-            {local} <span className="text-slate-400 font-black tabular-nums">{partido.marcadorLocal}</span>
-            {" — "}
-            <span className="text-slate-400 font-black tabular-nums">{partido.marcadorVisitante}</span> {visitante}
+          <h3 className="font-bold text-lg mt-1">
+            {local}{" "}
+            <span className="font-display italic font-extrabold text-2xl tabular-nums">{partido.marcadorLocal}</span>
+            <span className="text-suave">{" — "}</span>
+            <span className="font-display italic font-extrabold text-2xl tabular-nums">{partido.marcadorVisitante}</span>{" "}
+            {visitante}
           </h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-bold ${ESTADO_BADGE[partido.estado]}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`${ESTADO_BADGE_BASE} ${ESTADO_BADGE[partido.estado]}`}>
             {ESTADO_LABEL[partido.estado]}
           </span>
           {siguiente && (
             <ActionForm action={avanzarEstado.bind(null, partido.id, siguiente)}>
-              <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800">
+              <SubmitButton className={`px-2.5 py-1 text-xs ${BOTON_SECUNDARIO}`}>
                 → {ESTADO_LABEL[siguiente]}
               </SubmitButton>
             </ActionForm>
@@ -279,22 +293,23 @@ function PartidoCard({
         </div>
       </div>
 
-      <div className="border-t border-slate-100 dark:border-zinc-800 pt-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Árbitros</p>
+      <div className="border-t border-texto/10 pt-4">
+        <p className={`${ROTULO} mb-2`}>Árbitros</p>
         <div className="flex flex-wrap gap-2 mb-3">
           {(partido.asignaciones ?? []).length === 0 && (
-            <p className="text-sm text-slate-400">Sin árbitros asignados.</p>
+            <p className="text-sm text-suave">Sin árbitros asignados.</p>
           )}
           {(partido.asignaciones ?? []).map((asignacion) => (
             <span
               key={asignacion.arbitroId}
-              className="flex items-center gap-2 bg-slate-100 dark:bg-zinc-800 rounded-full pl-3 pr-1 py-1 text-sm font-medium"
+              className="flex items-center gap-1.5 bg-panel-alterno border border-texto/10 rounded-full pl-3 pr-1 py-1 text-sm font-semibold"
             >
               {asignacion.arbitro?.nombre ?? asignacion.arbitroId} · {asignacion.rolEnCampo}
               <DeleteButton
                 action={quitarArbitro.bind(null, partido.id, asignacion.arbitroId)}
-                label="✕"
-                className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-100 dark:hover:bg-red-950/50 text-slate-400 hover:text-red-600 text-xs"
+                label={<Icono nombre="cerrar" />}
+                ariaLabel={`Quitar a ${asignacion.arbitro?.nombre ?? asignacion.arbitroId}`}
+                className={BOTON_QUITAR}
               />
             </span>
           ))}
@@ -305,7 +320,8 @@ function PartidoCard({
               name="arbitroId"
               required
               defaultValue=""
-              className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent text-sm"
+              aria-label="Árbitro"
+              className={`text-sm ${INPUT} p-2!`}
             >
               <option value="" disabled>
                 Elige un árbitro…
@@ -319,13 +335,14 @@ function PartidoCard({
             <select
               name="rolEnCampo"
               defaultValue="Referee"
-              className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent text-sm"
+              aria-label="Rol en campo"
+              className={`text-sm ${INPUT} p-2!`}
             >
               <option value="Referee">Referee</option>
               <option value="Umpire">Umpire</option>
               <option value="Line Judge">Line Judge</option>
             </select>
-            <SubmitButton className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-zinc-800 text-sm font-semibold">
+            <SubmitButton className={`px-4 py-2 text-sm ${BOTON_SECUNDARIO}`}>
               + Asignar
             </SubmitButton>
           </ActionForm>
@@ -333,9 +350,10 @@ function PartidoCard({
       </div>
 
       {pendientes.length > 0 && (
-        <div className="border-t border-amber-200 dark:border-amber-900/50 pt-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-3">
-            ⚠️ {pendientes.length} discrepancia{pendientes.length === 1 ? "" : "s"} por resolver
+        <div className="border-t border-texto/10 pt-4">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-panuelo-texto mb-3">
+            <Icono nombre="alerta" className="text-base shrink-0" />
+            {pendientes.length} discrepancia{pendientes.length === 1 ? "" : "s"} por resolver
           </p>
           <div className="flex flex-col gap-3">
             {pendientes.map((d) => (
@@ -353,8 +371,8 @@ function PartidoCard({
       )}
 
       {resueltas.length > 0 && (
-        <details className="border-t border-slate-100 dark:border-zinc-800 pt-4">
-          <summary className="cursor-pointer text-xs font-bold uppercase tracking-wide text-slate-400 select-none">
+        <details className="border-t border-texto/10 pt-4">
+          <summary className={`cursor-pointer select-none ${ROTULO}`}>
             {resueltas.length} discrepancia{resueltas.length === 1 ? "" : "s"} resuelta
             {resueltas.length === 1 ? "" : "s"}
           </summary>
@@ -419,12 +437,12 @@ function DiscrepanciaResueltaRow({
     describirEventoDiscrepancia(e, arbitros, equipos, jugadoresPorId);
 
   return (
-    <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 rounded-2xl p-4 flex flex-col gap-2 text-sm">
+    <div className="bg-panel-alterno border border-texto/10 rounded-lg p-4 flex flex-col gap-2 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-bold">
           {resultado}
           {discrepancia.resolvedAt && (
-            <span className="font-normal text-slate-400">
+            <span className="font-normal text-suave">
               {" · "}
               {new Date(discrepancia.resolvedAt).toLocaleString("es-MX", {
                 dateStyle: "medium",
@@ -434,13 +452,13 @@ function DiscrepanciaResueltaRow({
           )}
         </span>
         <ActionForm action={reabrirDiscrepancia.bind(null, partidoId, discrepancia.id)}>
-          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-200 dark:bg-zinc-700">
+          <SubmitButton className={`px-2.5 py-1 text-xs ${BOTON_SECUNDARIO} bg-panel!`}>
             Reabrir
           </SubmitButton>
         </ActionForm>
       </div>
-      <p className="text-slate-500 dark:text-slate-400">A: {describir(discrepancia.eventoA)}</p>
-      <p className="text-slate-500 dark:text-slate-400">B: {describir(discrepancia.eventoB)}</p>
+      <p className="text-suave">A: {describir(discrepancia.eventoA)}</p>
+      <p className="text-suave">B: {describir(discrepancia.eventoB)}</p>
     </div>
   );
 }
@@ -462,8 +480,8 @@ function DiscrepanciaRow({
     describirEventoDiscrepancia(e, arbitros, equipos, jugadoresPorId);
 
   return (
-    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3 text-sm">
+    <div className="bg-panel-alterno border border-texto/10 border-l-4 border-l-panuelo rounded-lg p-4 flex flex-col gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
         {(["A", "B"] as const).map((lado) => {
           const evento = lado === "A" ? discrepancia.eventoA : discrepancia.eventoB;
           return (
@@ -473,7 +491,7 @@ function DiscrepanciaRow({
                 {evento.anulado && <AnuladoBadge />}
               </span>
               <span
-                className={`text-slate-500 dark:text-slate-400 ${evento.anulado ? "line-through" : ""}`}
+                className={`text-suave ${evento.anulado ? "line-through" : ""}`}
               >
                 {describirEvento(evento)}
               </span>
@@ -490,7 +508,7 @@ function DiscrepanciaRow({
                 ? "El otro evento ya fue anulado; descartar este dejaría la jugada sin registrar"
                 : undefined
             }
-            className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`px-3 py-1.5 text-xs bg-panel ${BOTON_PELIGRO}`}
           >
             Descartar A
           </SubmitButton>
@@ -503,13 +521,13 @@ function DiscrepanciaRow({
                 ? "El otro evento ya fue anulado; descartar este dejaría la jugada sin registrar"
                 : undefined
             }
-            className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`px-3 py-1.5 text-xs bg-panel ${BOTON_PELIGRO}`}
           >
             Descartar B
           </SubmitButton>
         </ActionForm>
         <ActionForm action={resolverDiscrepancia.bind(null, partidoId, discrepancia.id, "MANTENER_AMBOS")}>
-          <SubmitButton className="px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-zinc-800">
+          <SubmitButton className={`px-3 py-1.5 text-xs ${BOTON_SECUNDARIO} bg-panel!`}>
             Mantener ambos
           </SubmitButton>
         </ActionForm>
@@ -521,17 +539,12 @@ function DiscrepanciaRow({
 /** Marca un evento que el árbitro anuló al corregir el partido (ANULAR_EVENTO). */
 function AnuladoBadge() {
   return (
-    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-200">
+    <span className="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-[0.1em] bg-texto text-fondo">
       Anulado
     </span>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-8 shadow-sm flex flex-col items-center justify-center py-16 text-slate-400">
-      <span className="text-5xl mb-4 opacity-50">🏈</span>
-      <p className="text-lg font-medium text-slate-600 dark:text-slate-300 text-center">{text}</p>
-    </div>
-  );
+  return <Vacio icono="campo" texto={text} />;
 }

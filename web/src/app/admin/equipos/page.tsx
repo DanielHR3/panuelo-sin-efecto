@@ -3,6 +3,8 @@ import { authedFetch } from "@/lib/server-api";
 import type { Liga, Equipo } from "@/lib/types";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
+import { Vacio } from "../_components/Vacio";
+import { BOTON_PRIMARIO, BOTON_SECUNDARIO, ETIQUETA, INPUT, TITULO_PAGINA } from "../_components/estilos";
 import { crearEquipo, eliminarEquipo } from "./actions";
 
 export default async function EquiposPage({
@@ -23,22 +25,22 @@ export default async function EquiposPage({
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-black tracking-tight">Equipos y Rosters</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">
+        <h1 className={TITULO_PAGINA}>Equipos y Rosters</h1>
+        <p className="text-suave mt-2">
           Elige una categoría para gestionar sus equipos.
         </p>
       </header>
 
       <form
         method="GET"
-        className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col sm:flex-row gap-3 sm:items-end"
+        className="panel p-5 sm:p-6 flex flex-col sm:flex-row gap-3 sm:items-end"
       >
-        <label className="flex-1 flex flex-col gap-1.5 text-sm font-semibold">
+        <label className={`flex-1 ${ETIQUETA}`}>
           Categoría
           <select
             name="categoriaId"
             defaultValue={categoriaId ?? ""}
-            className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={INPUT}
           >
             <option value="">Selecciona una categoría…</option>
             {ligas.map((liga) => (
@@ -52,7 +54,7 @@ export default async function EquiposPage({
             ))}
           </select>
         </label>
-        <button className="px-5 py-3 rounded-xl bg-slate-100 dark:bg-zinc-800 font-semibold">
+        <button className={`px-5 py-3 ${BOTON_SECUNDARIO}`}>
           Ver
         </button>
       </form>
@@ -65,27 +67,27 @@ export default async function EquiposPage({
         <>
           <ActionForm
             action={crearEquipo.bind(null, categoriaId)}
-            className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col sm:flex-row gap-3 sm:items-end"
+            className="panel p-5 sm:p-6 flex flex-col sm:flex-row gap-3 sm:items-end"
           >
-            <label className="flex-1 flex flex-col gap-1.5 text-sm font-semibold">
+            <label className={`flex-1 ${ETIQUETA}`}>
               Nuevo equipo en {categoria.nombre}
               <input
                 name="nombre"
                 required
                 placeholder="Dragones"
-                className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={INPUT}
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-semibold">
+            <label className={ETIQUETA}>
               Color
               <input
                 type="color"
                 name="colorPrimario"
                 defaultValue="#3b82f6"
-                className="h-[46px] w-16 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent"
+                className="h-[52px] w-16 rounded-lg border-2 border-texto/20 bg-fondo p-1"
               />
             </label>
-            <SubmitButton className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all active:scale-95">
+            <SubmitButton className={BOTON_PRIMARIO}>
               + Crear equipo
             </SubmitButton>
           </ActionForm>
@@ -97,20 +99,19 @@ export default async function EquiposPage({
               {equipos.map((equipo) => (
                 <div
                   key={equipo.id}
-                  className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 flex flex-col gap-3"
+                  className="panel p-5 flex flex-col gap-4 relative overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="w-4 h-4 rounded-full shrink-0"
-                      style={{ backgroundColor: equipo.colorPrimario ?? "#94a3b8" }}
-                      aria-hidden="true"
-                    />
-                    <h3 className="font-bold text-lg truncate">{equipo.nombre}</h3>
-                  </div>
+                  {/* Franja con el color del equipo, como en el marcador. */}
+                  <span
+                    className="absolute left-0 top-0 bottom-0 w-1.5"
+                    style={{ backgroundColor: equipo.colorPrimario ?? "#94a3b8" }}
+                    aria-hidden="true"
+                  />
+                  <h3 className="titulo-estadio text-2xl leading-tight truncate">{equipo.nombre}</h3>
                   <div className="flex items-center justify-between mt-auto">
                     <Link
                       href={`/admin/equipos/${equipo.id}`}
-                      className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                      className="text-sm font-display font-bold uppercase tracking-[0.06em] text-panuelo-texto hover:underline"
                     >
                       Ver roster →
                     </Link>
@@ -130,10 +131,5 @@ export default async function EquiposPage({
 }
 
 function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-8 shadow-sm flex flex-col items-center justify-center py-16 text-slate-400">
-      <span className="text-5xl mb-4 opacity-50">🛡️</span>
-      <p className="text-lg font-medium text-slate-600 dark:text-slate-300 text-center">{text}</p>
-    </div>
-  );
+  return <Vacio icono="escudo" texto={text} />;
 }

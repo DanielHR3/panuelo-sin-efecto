@@ -8,9 +8,14 @@ export const ESTADO_LABEL: Record<EstadoPartido, string> = {
 
 // Clases completas y literales a propósito: Tailwind escanea el código
 // fuente en busca de nombres de clase tal cual aparecen, no de fragmentos
-// construidos en tiempo de ejecución.
+// construidos en tiempo de ejecución. Mismo esquema que /mis-partidos: en
+// juego es el pañuelo amarillo; el resto, neutros sobre los tokens.
 export const ESTADO_BADGE: Record<EstadoPartido, string> = {
-  PROGRAMADO: "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300",
-  EN_CURSO: "bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400",
-  FINALIZADO: "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400",
+  PROGRAMADO: "border border-texto/20 text-suave",
+  EN_CURSO: "bg-panuelo text-[#0A1A33]",
+  FINALIZADO: "bg-panel-alterno text-texto border border-texto/10",
 };
+
+/** Forma común de la insignia de estado. */
+export const ESTADO_BADGE_BASE =
+  "px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-[0.08em] shrink-0";
