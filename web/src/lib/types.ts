@@ -4,11 +4,13 @@ export interface Usuario {
   id: string;
   nombre: string;
   /**
-   * Solo llega a un SUPERADMIN (GET /usuarios) o en /usuarios/me. A un
-   * LIGA_ADMIN la API le lista los árbitros sin email.
+   * Llega en GET /usuarios (SUPERADMIN: todos; LIGA_ADMIN: sus árbitros) y en
+   * /usuarios/me. No llega en las asignaciones de un partido.
    */
   email?: string;
   rol: Rol;
+  /** Liga a la que pertenece un árbitro (null si no tiene). */
+  ligaArbitro?: { id: string; nombre: string } | null;
   createdAt: string;
   updatedAt: string;
 }

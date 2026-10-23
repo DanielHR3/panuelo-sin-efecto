@@ -149,10 +149,14 @@ describe('PartidosService', () => {
       expect(mockPrisma.asignacionArbitral.upsert).not.toHaveBeenCalled();
     });
 
-    it('hace upsert de la asignación para un ARBITRO válido', async () => {
+    it('hace upsert de la asignación para un ARBITRO de la misma liga', async () => {
       mockPrisma.usuario.findUnique.mockResolvedValueOnce({
         rol: 'ARBITRO',
         esInvitado: false,
+        ligaArbitroId: 'liga-1',
+      });
+      mockPrisma.partido.findUnique.mockResolvedValueOnce({
+        categoria: { ligaId: 'liga-1' },
       });
       mockPrisma.asignacionArbitral.upsert.mockResolvedValueOnce({});
       await service.asignarArbitro(
@@ -163,6 +167,46 @@ describe('PartidosService', () => {
       expect(mockOwnership.assertCanManagePartido).toHaveBeenCalledWith(
         'p1',
         user,
+      );
+      expect(mockPrisma.asignacionArbitral.upsert).toHaveBeenCalled();
+    });
+
+    it('un LIGA_ADMIN no puede asignar un árbitro de otra liga (o sin liga)', async () => {
+      for (const ligaArbitroId of ['otra-liga', null]) {
+        mockPrisma.usuario.findUnique.mockResolvedValueOnce({
+          rol: 'ARBITRO',
+          esInvitado: false,
+          ligaArbitroId,
+        });
+        mockPrisma.partido.findUnique.mockResolvedValueOnce({
+          categoria: { ligaId: 'liga-1' },
+        });
+        await expect(
+          service.asignarArbitro(
+            'p1',
+            { arbitroId: 'ref-x', rolEnCampo: 'Referee' },
+            user,
+          ),
+        ).rejects.toThrow(
+          new BadRequestException(
+            'Ese árbitro no pertenece a la liga de este partido',
+          ),
+        );
+      }
+      expect(mockPrisma.asignacionArbitral.upsert).not.toHaveBeenCalled();
+    });
+
+    it('un SUPERADMIN puede asignar cualquier árbitro con cuenta', async () => {
+      mockPrisma.usuario.findUnique.mockResolvedValueOnce({
+        rol: 'ARBITRO',
+        esInvitado: false,
+        ligaArbitroId: null,
+      });
+      mockPrisma.asignacionArbitral.upsert.mockResolvedValueOnce({});
+      await service.asignarArbitro(
+        'p1',
+        { arbitroId: 'ref-1', rolEnCampo: 'Referee' },
+        { sub: 'boss', email: 's@x.mx', rol: 'SUPERADMIN' },
       );
       expect(mockPrisma.asignacionArbitral.upsert).toHaveBeenCalled();
     });

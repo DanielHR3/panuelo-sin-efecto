@@ -178,7 +178,7 @@ export class PartidosService {
 
     const arbitro = await this.prisma.usuario.findUnique({
       where: { id: dto.arbitroId },
-      select: { rol: true, esInvitado: true },
+      select: { rol: true, esInvitado: true, ligaArbitroId: true },
     });
     if (!arbitro || arbitro.rol !== 'ARBITRO') {
       throw new BadRequestException(
@@ -191,6 +191,19 @@ export class PartidosService {
       throw new BadRequestException(
         'No se puede asignar a un árbitro invitado',
       );
+    }
+    // Cada liga trabaja con sus propios árbitros (los que da de alta su
+    // dueño). El SUPERADMIN puede asignar a cualquiera con cuenta.
+    if (user.rol !== 'SUPERADMIN') {
+      const partido = await this.prisma.partido.findUnique({
+        where: { id: partidoId },
+        select: { categoria: { select: { ligaId: true } } },
+      });
+      if (!partido || arbitro.ligaArbitroId !== partido.categoria.ligaId) {
+        throw new BadRequestException(
+          'Ese árbitro no pertenece a la liga de este partido',
+        );
+      }
     }
 
     return this.prisma.asignacionArbitral.upsert({
