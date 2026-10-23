@@ -193,9 +193,12 @@ describe('ANULAR_EVENTO y REABRIR_PARTIDO', () => {
       local: 6,
       visitante: 0,
     });
-    expect(filtrarEventosVigentes(eventos).map((e) => e.id)).toEqual(
-      expect.arrayContaining(['f1', 'f2', 'r']),
-    );
+    expect(filtrarEventosVigentes(eventos).map((e) => e.id)).toEqual([
+      'a',
+      'f1',
+      'f2',
+      'r',
+    ]);
   });
 
   it('UNDO después de un TD posterior a la reapertura cancela ese TD', () => {
@@ -214,7 +217,7 @@ describe('ANULAR_EVENTO y REABRIR_PARTIDO', () => {
     expect(m).toEqual({ local: 6, visitante: 0 });
   });
 
-  it('filtrarEventosVigentes excluye el evento anulado y conserva el ANULAR_EVENTO', () => {
+  it('filtrarEventosVigentes excluye lo anulado y conserva el ANULAR_EVENTO', () => {
     const vigentes = filtrarEventosVigentes([
       ev('TD', LOCAL, 'a'),
       ev('PAT1', LOCAL, 'b'),
@@ -231,4 +234,22 @@ describe('ANULAR_EVENTO y REABRIR_PARTIDO', () => {
     );
     expect(m).toEqual({ local: 6, visitante: 0 });
   });
+
+  it.each(['REABRIR_PARTIDO', 'FIN_MITAD', 'ANULAR_EVENTO'])(
+    'ANULAR_EVENTO que apunta a %s es no-op',
+    (tipo) => {
+      const eventos = [
+        ev('TD', LOCAL, 'a'),
+        ev(tipo, null, 'obj', tipo === 'ANULAR_EVENTO' ? 'a' : null),
+        ev('ANULAR_EVENTO', null, 'x', 'obj'),
+      ];
+      const sinAnular = eventos.slice(0, 2);
+      expect(calcularMarcador(eventos, LOCAL, VISITA)).toEqual(
+        calcularMarcador(sinAnular, LOCAL, VISITA),
+      );
+      const ids = filtrarEventosVigentes(eventos).map((e) => e.id);
+      expect(ids).toContain('obj');
+      expect(ids).toContain('x');
+    },
+  );
 });

@@ -1,4 +1,4 @@
-import { puntosDe } from './evento.constants';
+import { esAnulable, puntosDe } from './evento.constants';
 
 export interface EventoParaMarcador {
   id: string;
@@ -31,7 +31,8 @@ interface Anotado<T> {
  *   encuentra un REABRIR_PARTIDO antes de dar con un candidato, no cancela
  *   nada (no-op). Nunca cancela un REABRIR_PARTIDO ni lo que hay antes.
  * - Cada ANULAR_EVENTO no cancelado marca "cancelado" al evento cuyo id es
- *   `eventoAnuladoId` (en cualquier posición); un id inexistente es no-op.
+ *   `eventoAnuladoId` (en cualquier posición); un id inexistente o un
+ *   objetivo no anulable (control, UNDO, ANULAR) es no-op.
  *   Como el propio ANULAR_EVENTO está en la pila, un UNDO posterior lo
  *   cancela y con ello restituye el evento anulado.
  *
@@ -70,7 +71,10 @@ function marcarCancelaciones<
     const objetivo = pila.find(
       (b) => b.original.id === a.original.eventoAnuladoId,
     );
-    if (objetivo) objetivo.cancelado = true;
+    // Solo se anulan jugadas y faltas; control, UNDO o ANULAR es no-op.
+    if (objetivo && esAnulable(objetivo.original.tipoEvento)) {
+      objetivo.cancelado = true;
+    }
   }
   return pila;
 }
