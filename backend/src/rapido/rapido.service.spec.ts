@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { RapidoService } from './rapido.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -8,12 +12,14 @@ const mockTx = {
   usuario: { create: jest.fn() },
   liga: { findFirst: jest.fn(), create: jest.fn() },
   categoria: { findFirst: jest.fn(), create: jest.fn() },
-  equipo: { create: jest.fn() },
+  equipo: { create: jest.fn(), update: jest.fn() },
   partido: { create: jest.fn() },
   asignacionArbitral: { create: jest.fn() },
 };
 const mockPrisma = {
   usuario: { findUnique: jest.fn() },
+  partido: { findUnique: jest.fn() },
+  eventoPartido: { updateMany: jest.fn(), create: jest.fn() },
   $transaction: jest.fn((cb: (tx: typeof mockTx) => unknown) => cb(mockTx)),
 };
 const mockJwt = { signAsync: jest.fn(), verifyAsync: jest.fn() };
@@ -150,5 +156,74 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
       { sub: 'borrado', email: 'x@x', rol: 'ARBITRO' },
     );
     expect(mockTx.usuario.create).toHaveBeenCalledTimes(1);
+  });
+
+  describe('intercambiarEquipos', () => {
+    const partido = (tipo = 'RAPIDA') => ({
+      categoria: { liga: { tipo, propietarioId: 'dueno' } },
+      asignaciones: [{ arbitroId: 'arb' }],
+      equipoLocal: { id: 'eq-l', nombre: 'Toros', colorPrimario: '#111111' },
+      equipoVisitante: { id: 'eq-v', nombre: 'Lobos', colorPrimario: null },
+    });
+    const dueno = { sub: 'dueno', email: 'd@x', rol: 'ARBITRO' as const };
+
+    it('intercambia nombres y color de los dos equipos en una transacción', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      const r = await service.intercambiarEquipos('p-1', dueno);
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockTx.equipo.update).toHaveBeenCalledWith({
+        where: { id: 'eq-l' },
+        data: { nombre: 'Lobos', colorPrimario: null },
+      });
+      expect(mockTx.equipo.update).toHaveBeenCalledWith({
+        where: { id: 'eq-v' },
+        data: { nombre: 'Toros', colorPrimario: '#111111' },
+      });
+      expect(r).toEqual({
+        equipoLocal: { id: 'eq-l', nombre: 'Lobos' },
+        equipoVisitante: { id: 'eq-v', nombre: 'Toros' },
+      });
+    });
+
+    it('permite al árbitro asignado y al superadmin', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      await service.intercambiarEquipos('p-1', { ...dueno, sub: 'arb' });
+      await service.intercambiarEquipos('p-1', {
+        ...dueno,
+        sub: 'otro',
+        rol: 'SUPERADMIN',
+      });
+      expect(mockTx.equipo.update).toHaveBeenCalledTimes(4);
+    });
+
+    it('un usuario ajeno recibe 403', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      await expect(
+        service.intercambiarEquipos('p-1', { ...dueno, sub: 'ajeno' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mockTx.equipo.update).not.toHaveBeenCalled();
+    });
+
+    it('partido inexistente → 404', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValue(null);
+      await expect(
+        service.intercambiarEquipos('nope', dueno),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('liga tipo LIGA → 400 Solo disponible en partidos rápidos', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValue(partido('LIGA'));
+      await expect(service.intercambiarEquipos('p-1', dueno)).rejects.toThrow(
+        'Solo disponible en partidos rápidos',
+      );
+      expect(mockTx.equipo.update).not.toHaveBeenCalled();
+    });
+
+    it('no toca eventos', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      await service.intercambiarEquipos('p-1', dueno);
+      expect(mockPrisma.eventoPartido.updateMany).not.toHaveBeenCalled();
+      expect(mockPrisma.eventoPartido.create).not.toHaveBeenCalled();
+    });
   });
 });
