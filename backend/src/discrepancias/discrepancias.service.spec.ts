@@ -18,10 +18,26 @@ const mockTx = {
 
 const mockPrisma = {
   discrepanciaEvento: { findMany: jest.fn(), findUnique: jest.fn() },
+  eventoPartido: { findMany: jest.fn() },
   $transaction: jest.fn((cb: (tx: typeof mockTx) => unknown) => cb(mockTx)),
 };
 
 const mockOwnership = { assertCanManagePartido: jest.fn() };
+
+const td = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  tipoEvento: 'TD',
+  equipoId: LOCAL_ID,
+  eventoAnuladoId: null,
+  ...extra,
+});
+const reabrir = { id: 'r1', tipoEvento: 'REABRIR_PARTIDO', equipoId: null };
+const anularE = (id: string, objetivo: string) => ({
+  id,
+  tipoEvento: 'ANULAR_EVENTO',
+  equipoId: null,
+  eventoAnuladoId: objetivo,
+});
 
 function discrepanciaPendiente() {
   return {
@@ -46,7 +62,9 @@ describe('DiscrepanciasService', () => {
       equipoLocalId: LOCAL_ID,
       equipoVisitanteId: VISITA_ID,
     });
-    mockTx.eventoPartido.findMany.mockResolvedValue([]);
+    // Por defecto ambos lados de la discrepancia siguen vigentes.
+    mockTx.eventoPartido.findMany.mockResolvedValue([td('e1'), td('e2')]);
+    mockPrisma.eventoPartido.findMany.mockResolvedValue([td('e1'), td('e2')]);
     mockTx.discrepanciaEvento.update.mockResolvedValue({});
     mockTx.discrepanciaEvento.count.mockResolvedValue(0);
 
@@ -77,7 +95,104 @@ describe('DiscrepanciasService', () => {
     });
   });
 
+  describe('listar: vigencia de cada lado (ANULAR_EVENTO posterior)', () => {
+    const fila = () => ({
+      id: 'd1',
+      eventoA: { id: 'e1', tipoEvento: 'TD', descartado: false },
+      eventoB: { id: 'e2', tipoEvento: 'TD', descartado: false },
+    });
+
+    it('marca anulado=false en ambos lados si siguen vigentes', async () => {
+      mockPrisma.discrepanciaEvento.findMany.mockResolvedValueOnce([fila()]);
+      const [d] = await service.listar('p1', admin);
+      expect(d.eventoA.anulado).toBe(false);
+      expect(d.eventoB.anulado).toBe(false);
+    });
+
+    it('marca anulado=true en el lado anulado por ANULAR_EVENTO', async () => {
+      mockPrisma.discrepanciaEvento.findMany.mockResolvedValueOnce([fila()]);
+      mockPrisma.eventoPartido.findMany.mockResolvedValueOnce([
+        td('e1'),
+        td('e2'),
+        reabrir,
+        anularE('a1', 'e2'),
+      ]);
+      const [d] = await service.listar('p1', admin);
+      expect(d.eventoA.anulado).toBe(false);
+      expect(d.eventoB.anulado).toBe(true);
+      const [arg] = mockPrisma.eventoPartido.findMany.mock.calls[0] as [
+        { where: unknown; orderBy: unknown },
+      ];
+      expect(arg.where).toEqual({ partidoId: 'p1', descartado: false });
+      expect(arg.orderBy).toEqual([{ timestamp: 'asc' }, { id: 'asc' }]);
+    });
+
+    it('un UNDO del ANULAR_EVENTO devuelve la vigencia (calculada al leer)', async () => {
+      mockPrisma.discrepanciaEvento.findMany.mockResolvedValueOnce([fila()]);
+      mockPrisma.eventoPartido.findMany.mockResolvedValueOnce([
+        td('e1'),
+        td('e2'),
+        reabrir,
+        anularE('a1', 'e2'),
+        { id: 'u1', tipoEvento: 'UNDO_LAST_ACTION', equipoId: null },
+      ]);
+      const [d] = await service.listar('p1', admin);
+      expect(d.eventoB.anulado).toBe(false);
+    });
+  });
+
   describe('resolver', () => {
+    it('rechaza descartar A si B ya fue anulado', async () => {
+      mockPrisma.discrepanciaEvento.findUnique.mockResolvedValueOnce(
+        discrepanciaPendiente(),
+      );
+      mockTx.eventoPartido.findMany.mockResolvedValue([
+        td('e1'),
+        td('e2'),
+        reabrir,
+        anularE('a1', 'e2'),
+      ]);
+      const p = service.resolver('p1', 'd1', { accion: 'DESCARTAR_A' }, admin);
+      await expect(p).rejects.toBeInstanceOf(BadRequestException);
+      await expect(p).rejects.toThrow(
+        'El otro evento ya fue anulado; descartar este dejaría la jugada sin registrar',
+      );
+      expect(mockTx.eventoPartido.update).not.toHaveBeenCalled();
+      expect(mockTx.discrepanciaEvento.update).not.toHaveBeenCalled();
+    });
+
+    it('permite descartar el lado anulado (B) si A sigue vigente', async () => {
+      mockPrisma.discrepanciaEvento.findUnique.mockResolvedValueOnce(
+        discrepanciaPendiente(),
+      );
+      mockTx.eventoPartido.findMany.mockResolvedValue([
+        td('e1'),
+        td('e2'),
+        reabrir,
+        anularE('a1', 'e2'),
+      ]);
+      await service.resolver('p1', 'd1', { accion: 'DESCARTAR_B' }, admin);
+      expect(mockTx.eventoPartido.update).toHaveBeenCalledWith({
+        where: { id: 'e2' },
+        data: { descartado: true },
+      });
+    });
+
+    it('MANTENER_AMBOS sigue permitido aunque un lado esté anulado', async () => {
+      mockPrisma.discrepanciaEvento.findUnique.mockResolvedValueOnce(
+        discrepanciaPendiente(),
+      );
+      mockTx.eventoPartido.findMany.mockResolvedValue([
+        td('e1'),
+        td('e2'),
+        reabrir,
+        anularE('a1', 'e1'),
+      ]);
+      await expect(
+        service.resolver('p1', 'd1', { accion: 'MANTENER_AMBOS' }, admin),
+      ).resolves.toBeDefined();
+    });
+
     it('lanza NotFound si la discrepancia no existe', async () => {
       mockPrisma.discrepanciaEvento.findUnique.mockResolvedValueOnce(null);
       await expect(

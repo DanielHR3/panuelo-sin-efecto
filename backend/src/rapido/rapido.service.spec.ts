@@ -13,7 +13,8 @@ const mockTx = {
   liga: { findFirst: jest.fn(), create: jest.fn() },
   categoria: { findFirst: jest.fn(), create: jest.fn() },
   equipo: { create: jest.fn(), update: jest.fn() },
-  partido: { create: jest.fn() },
+  partido: { create: jest.fn(), findUnique: jest.fn() },
+  $executeRaw: jest.fn(),
   asignacionArbitral: { create: jest.fn() },
 };
 const mockPrisma = {
@@ -168,7 +169,7 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
     const dueno = { sub: 'dueno', email: 'd@x', rol: 'ARBITRO' as const };
 
     it('intercambia nombres y color de los dos equipos en una transacción', async () => {
-      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      mockTx.partido.findUnique.mockResolvedValue(partido());
       const r = await service.intercambiarEquipos('p-1', dueno);
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
       expect(mockTx.equipo.update).toHaveBeenCalledWith({
@@ -185,8 +186,23 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
       });
     });
 
+    it('lee el partido dentro de la transacción tras bloquear su fila (FOR UPDATE)', async () => {
+      mockTx.partido.findUnique.mockResolvedValue(partido());
+      await service.intercambiarEquipos('p-1', dueno);
+      expect(mockPrisma.partido.findUnique).not.toHaveBeenCalled();
+      const sql = (
+        mockTx.$executeRaw.mock.calls[0] as [TemplateStringsArray]
+      )[0]
+        .join('?')
+        .toUpperCase();
+      expect(sql).toContain('FOR UPDATE');
+      expect(mockTx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        mockTx.partido.findUnique.mock.invocationCallOrder[0],
+      );
+    });
+
     it('permite al árbitro asignado y al superadmin', async () => {
-      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      mockTx.partido.findUnique.mockResolvedValue(partido());
       await service.intercambiarEquipos('p-1', { ...dueno, sub: 'arb' });
       await service.intercambiarEquipos('p-1', {
         ...dueno,
@@ -197,7 +213,7 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
     });
 
     it('un usuario ajeno recibe 403', async () => {
-      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      mockTx.partido.findUnique.mockResolvedValue(partido());
       await expect(
         service.intercambiarEquipos('p-1', { ...dueno, sub: 'ajeno' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
@@ -205,14 +221,14 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
     });
 
     it('partido inexistente → 404', async () => {
-      mockPrisma.partido.findUnique.mockResolvedValue(null);
+      mockTx.partido.findUnique.mockResolvedValue(null);
       await expect(
         service.intercambiarEquipos('nope', dueno),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('liga tipo LIGA → 400 Solo disponible en partidos rápidos', async () => {
-      mockPrisma.partido.findUnique.mockResolvedValue(partido('LIGA'));
+      mockTx.partido.findUnique.mockResolvedValue(partido('LIGA'));
       await expect(service.intercambiarEquipos('p-1', dueno)).rejects.toThrow(
         'Solo disponible en partidos rápidos',
       );
@@ -220,7 +236,7 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
     });
 
     it('no toca eventos', async () => {
-      mockPrisma.partido.findUnique.mockResolvedValue(partido());
+      mockTx.partido.findUnique.mockResolvedValue(partido());
       await service.intercambiarEquipos('p-1', dueno);
       expect(mockPrisma.eventoPartido.updateMany).not.toHaveBeenCalled();
       expect(mockPrisma.eventoPartido.create).not.toHaveBeenCalled();

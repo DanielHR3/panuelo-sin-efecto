@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
-import { calcularMarcador } from '../eventos/marcador';
+import { calcularMarcador, filtrarEventosVigentes } from '../eventos/marcador';
 import { ResolverDiscrepanciaDto } from './dto/resolver-discrepancia.dto';
 
 const eventoPublico = {
@@ -29,14 +29,28 @@ export class DiscrepanciasService {
 
   async listar(partidoId: string, user: AuthUser) {
     await this.ownership.assertCanManagePartido(partidoId, user);
-    return this.prisma.discrepanciaEvento.findMany({
-      where: { partidoId },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        eventoA: { select: eventoPublico },
-        eventoB: { select: eventoPublico },
-      },
-    });
+    const [discrepancias, vigentes] = await Promise.all([
+      this.prisma.discrepanciaEvento.findMany({
+        where: { partidoId },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          eventoA: { select: eventoPublico },
+          eventoB: { select: eventoPublico },
+        },
+      }),
+      this.idsVigentes(this.prisma, partidoId),
+    ]);
+    // `anulado`: el evento sigue en la bitácora pero ya no cuenta para el
+    // marcador (ANULAR_EVENTO o UNDO posterior). Se calcula al leer — nada
+    // se persiste — así que deshacer un ANULAR_EVENTO lo devuelve a false.
+    const conVigencia = <E extends { id: string; descartado: boolean }>(
+      e: E,
+    ) => ({ ...e, anulado: !e.descartado && !vigentes.has(e.id) });
+    return discrepancias.map((d) => ({
+      ...d,
+      eventoA: conVigencia(d.eventoA),
+      eventoB: conVigencia(d.eventoB),
+    }));
   }
 
   async resolver(
@@ -61,6 +75,18 @@ export class DiscrepanciasService {
       await this.bloquearPartido(tx, partidoId);
 
       if (eventoDescartadoId) {
+        // Si la contraparte ya no cuenta (anulada con ANULAR_EVENTO o
+        // deshecha), descartar este lado borraría la jugada por completo.
+        const contraparteId =
+          eventoDescartadoId === discrepancia.eventoAId
+            ? discrepancia.eventoBId
+            : discrepancia.eventoAId;
+        const vigentes = await this.idsVigentes(tx, partidoId);
+        if (!vigentes.has(contraparteId)) {
+          throw new BadRequestException(
+            'El otro evento ya fue anulado; descartar este dejaría la jugada sin registrar',
+          );
+        }
         await tx.eventoPartido.update({
           where: { id: eventoDescartadoId },
           data: { descartado: true },
@@ -143,6 +169,23 @@ export class DiscrepanciasService {
       );
     }
     return discrepancia;
+  }
+
+  /**
+   * Ids de los eventos que siguen contando para el marcador: la misma pila
+   * de cancelación (UNDO / ANULAR_EVENTO) que `calcularMarcador`, sobre los
+   * eventos no descartados y en el mismo orden.
+   */
+  private async idsVigentes(
+    db: Prisma.TransactionClient,
+    partidoId: string,
+  ): Promise<Set<string>> {
+    const eventos = await db.eventoPartido.findMany({
+      where: { partidoId, descartado: false },
+      orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
+      select: { id: true, tipoEvento: true, eventoAnuladoId: true },
+    });
+    return new Set(filtrarEventosVigentes(eventos).map((e) => e.id));
   }
 
   /**

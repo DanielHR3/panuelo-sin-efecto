@@ -756,4 +756,133 @@ describe('EventosService', () => {
       expect(mockTx.discrepanciaEvento.createMany).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('revisión final: validaciones de eventoAnuladoId y timestamp', () => {
+    const enCurso = () =>
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('EN_CURSO'),
+      );
+
+    it('eventoAnuladoId con un tipo distinto de ANULAR_EVENTO -> 400', async () => {
+      enCurso();
+      const p = service.registrar(
+        'p1',
+        { tipoEvento: 'TD', equipoId: LOCAL_ID, eventoAnuladoId: 'ev-x' },
+        arbitroAsignado,
+      );
+      await expect(p).rejects.toBeInstanceOf(BadRequestException);
+      await expect(p).rejects.toThrow(
+        'eventoAnuladoId solo aplica a ANULAR_EVENTO',
+      );
+      expect(mockTx.eventoPartido.create).not.toHaveBeenCalled();
+    });
+
+    it('ANULAR_EVENTO contra un evento descartado da un mensaje específico', async () => {
+      enCurso();
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        {
+          id: 'ev-td',
+          tipoEvento: 'TD',
+          eventoAnuladoId: null,
+          descartado: true,
+        },
+        {
+          id: 'r1',
+          tipoEvento: 'REABRIR_PARTIDO',
+          eventoAnuladoId: null,
+          descartado: false,
+        },
+      ]);
+      await expect(
+        service.registrar(
+          'p1',
+          { tipoEvento: 'ANULAR_EVENTO', eventoAnuladoId: 'ev-td' },
+          arbitroAsignado,
+        ),
+      ).rejects.toThrow(
+        'Ese evento fue descartado al resolver una discrepancia',
+      );
+    });
+
+    it('un timestamp más de 5 min en el futuro -> 400', async () => {
+      enCurso();
+      const p = service.registrar(
+        'p1',
+        {
+          tipoEvento: 'TIMEOUT',
+          equipoId: LOCAL_ID,
+          timestamp: new Date(Date.now() + 6 * 60_000).toISOString(),
+        },
+        arbitroAsignado,
+      );
+      await expect(p).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockTx.eventoPartido.create).not.toHaveBeenCalled();
+    });
+
+    it('un timestamp ligeramente en el futuro (deriva de reloj) se acepta', async () => {
+      enCurso();
+      await expect(
+        service.registrar(
+          'p1',
+          {
+            tipoEvento: 'TIMEOUT',
+            equipoId: LOCAL_ID,
+            timestamp: new Date(Date.now() + 60_000).toISOString(),
+          },
+          arbitroAsignado,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('tras un REABRIR_PARTIDO, un timestamp anterior a él -> 400 (bajo el bloqueo)', async () => {
+      enCurso();
+      mockTx.eventoPartido.findFirst.mockResolvedValueOnce({
+        timestamp: new Date('2026-10-20T12:00:00.000Z'),
+      });
+      const p = service.registrar(
+        'p1',
+        {
+          tipoEvento: 'UNDO_LAST_ACTION',
+          timestamp: '2026-10-20T11:59:00.000Z',
+        },
+        arbitroAsignado,
+      );
+      await expect(p).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockTx.eventoPartido.create).not.toHaveBeenCalled();
+      const [arg] = mockTx.eventoPartido.findFirst.mock.calls[0] as [
+        { where: { tipoEvento: string } },
+      ];
+      expect(arg.where.tipoEvento).toBe('REABRIR_PARTIDO');
+      expect(mockTx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        mockTx.eventoPartido.findFirst.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('tras un REABRIR_PARTIDO, un timestamp posterior se acepta', async () => {
+      enCurso();
+      mockTx.eventoPartido.findFirst.mockResolvedValueOnce({
+        timestamp: new Date('2026-10-20T12:00:00.000Z'),
+      });
+      await expect(
+        service.registrar(
+          'p1',
+          {
+            tipoEvento: 'UNDO_LAST_ACTION',
+            timestamp: '2026-10-20T12:01:00.000Z',
+          },
+          arbitroAsignado,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('sin timestamp no se consulta el último REABRIR_PARTIDO', async () => {
+      enCurso();
+      await service.registrar(
+        'p1',
+        { tipoEvento: 'TIMEOUT', equipoId: LOCAL_ID },
+        arbitroAsignado,
+      );
+      expect(mockTx.eventoPartido.findFirst).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -187,7 +187,20 @@ describe('PartidosService', () => {
     const [arg] = mockPrisma.partido.findUnique.mock.calls[0] as [
       { include: { categoria: unknown } },
     ];
-    expect(arg.include.categoria).toEqual({ include: { liga: true } });
+    expect(arg.include.categoria).toEqual({
+      include: {
+        liga: {
+          select: {
+            id: true,
+            nombre: true,
+            logoUrl: true,
+            tipo: true,
+            registraMvp: true,
+            registraIntercepciones: true,
+          },
+        },
+      },
+    });
   });
 
   it('findAllByCategoria() incluye las asignaciones con los datos públicos del árbitro', async () => {
