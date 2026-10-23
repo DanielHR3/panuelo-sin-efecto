@@ -312,7 +312,12 @@ export async function asegurarLigaDemo(
   return prisma.$transaction(
     async (tx) => {
       const liga = await tx.liga.create({
-        data: { nombre: demo.nombre, esDemo: true, propietarioId: dueno.id },
+        data: {
+          nombre: demo.nombre,
+          esDemo: true,
+          propietarioId: dueno.id,
+          suscripcion: { create: { plan: 'CORTESIA' } },
+        },
         select: { id: true },
       });
 

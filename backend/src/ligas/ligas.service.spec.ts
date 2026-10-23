@@ -18,6 +18,7 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  suscripcion: { count: jest.fn() },
 };
 const mockOwnership = {
   assertCanManageLiga: jest.fn(),
@@ -51,6 +52,57 @@ describe('LigasService', () => {
   const superadmin = { sub: 'boss', email: 'x@y.z', rol: 'SUPERADMIN' };
 
   describe('create', () => {
+    beforeEach(() => mockPrisma.suscripcion.count.mockResolvedValue(0));
+
+    it('la primera liga de un organizador nace con 30 días de prueba', async () => {
+      mockPrisma.liga.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l1', ...data }),
+      );
+      await service.create({ nombre: 'Liga X' }, arbitro);
+      const [[arg]] = mockPrisma.liga.create.mock.calls as [
+        [
+          {
+            data: {
+              suscripcion: {
+                create: { plan: string; pruebaHasta: Date | null };
+              };
+            };
+          },
+        ],
+      ];
+      expect(arg.data.suscripcion.create.plan).toBe('COMPLETO');
+      expect(arg.data.suscripcion.create.pruebaHasta).toBeInstanceOf(Date);
+    });
+
+    it('si el organizador ya tuvo prueba, la liga nueva nace sin prueba', async () => {
+      mockPrisma.suscripcion.count.mockResolvedValueOnce(1);
+      mockPrisma.liga.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l2', ...data }),
+      );
+      await service.create({ nombre: 'Otra liga' }, arbitro);
+      const [[arg]] = mockPrisma.liga.create.mock.calls as [
+        [{ data: { suscripcion: { create: { pruebaHasta: Date | null } } } }],
+      ];
+      expect(arg.data.suscripcion.create.pruebaHasta).toBeNull();
+      expect(mockPrisma.suscripcion.count).toHaveBeenCalledWith({
+        where: {
+          pruebaHasta: { not: null },
+          liga: { propietarioId: 'user-1' },
+        },
+      });
+    });
+
+    it('las ligas que crea un SUPERADMIN son de cortesía', async () => {
+      mockPrisma.liga.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l3', ...data }),
+      );
+      await service.create({ nombre: 'Liga Z' }, superadmin);
+      const [[arg]] = mockPrisma.liga.create.mock.calls as [
+        [{ data: { suscripcion: { create: { plan: string } } } }],
+      ];
+      expect(arg.data.suscripcion.create.plan).toBe('CORTESIA');
+    });
+
     it('asigna el propietario al usuario autenticado ignorando el del body', async () => {
       mockPrisma.liga.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: 'l1', ...data }),
@@ -105,13 +157,14 @@ describe('LigasService', () => {
       );
 
       expect(mockPrisma.liga.create).toHaveBeenCalledWith({
-        data: {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
           nombre: 'Liga X',
           propietarioId: 'user-1',
           logoUrl: 'https://cdn.example.com/logo.png',
           registraMvp: false,
           registraIntercepciones: true,
-        },
+        }),
       });
     });
 
@@ -123,13 +176,14 @@ describe('LigasService', () => {
       await service.create({ nombre: 'Liga X' }, arbitro);
 
       expect(mockPrisma.liga.create).toHaveBeenCalledWith({
-        data: {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
           nombre: 'Liga X',
           propietarioId: 'user-1',
           logoUrl: null,
           registraMvp: true,
           registraIntercepciones: true,
-        },
+        }),
       });
     });
 
@@ -164,8 +218,25 @@ describe('LigasService', () => {
       await service.findAll(ligaAdmin);
       expect(mockPrisma.liga.findMany).toHaveBeenCalledWith({
         where: { propietarioId: 'admin-1', tipo: 'LIGA' },
-        include: { categorias: true },
+        include: { categorias: true, suscripcion: true },
       });
+    });
+
+    it('cada liga trae el estado de su suscripción calculado', async () => {
+      mockPrisma.liga.findMany.mockResolvedValueOnce([
+        {
+          id: 'l1',
+          suscripcion: {
+            plan: 'CORTESIA',
+            pruebaHasta: null,
+            pagadoHasta: null,
+          },
+        },
+        { id: 'r1', suscripcion: null },
+      ]);
+      const ligas = await service.findAll(ligaAdmin);
+      expect(ligas[0].suscripcion).toMatchObject({ estado: 'CORTESIA' });
+      expect(ligas[1].suscripcion).toBeNull();
     });
 
     it('un SUPERADMIN lista todas las ligas', async () => {
@@ -173,7 +244,7 @@ describe('LigasService', () => {
       await service.findAll(superadmin);
       expect(mockPrisma.liga.findMany).toHaveBeenCalledWith({
         where: {},
-        include: { categorias: true },
+        include: { categorias: true, suscripcion: true },
       });
     });
   });
