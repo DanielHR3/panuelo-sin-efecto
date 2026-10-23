@@ -25,7 +25,7 @@ export function ActionForm({
     <form action={formAction} className={className}>
       {children}
       {state?.error && (
-        <p role="alert" className="text-sm font-semibold text-red-600 dark:text-red-400 mt-2">
+        <p role="alert" className="text-sm font-semibold text-peligro mt-2">
           {state.error}
         </p>
       )}
@@ -40,6 +40,7 @@ export function SubmitButton({
   className,
   disabled = false,
   title,
+  ariaLabel,
 }: {
   children: ReactNode;
   pendingLabel?: string;
@@ -47,10 +48,12 @@ export function SubmitButton({
   /** Deshabilita el envío aunque no haya uno en curso (p. ej. acción no permitida). */
   disabled?: boolean;
   title?: string;
+  /** Nombre accesible para botones de solo ícono. */
+  ariaLabel?: string;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending || disabled} title={title} className={className}>
+    <button type="submit" disabled={pending || disabled} title={title} aria-label={ariaLabel} className={className}>
       {pending ? pendingLabel : children}
     </button>
   );

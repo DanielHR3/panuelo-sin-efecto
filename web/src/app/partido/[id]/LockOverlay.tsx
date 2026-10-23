@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { TableroEstadio } from "@/app/_publico/Marcador";
+import { Icono } from "@/components/icons/Icono";
 import type { PartidoConRoster } from "@/lib/types";
 
 const HOLD_MS = 800;
@@ -50,27 +52,22 @@ export function LockOverlay({
     <div
       role="dialog"
       aria-label="Pantalla bloqueada"
-      className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-background/95 backdrop-blur-sm p-6 gap-6"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-fondo p-6 gap-6"
     >
-      <div className="flex flex-col items-center gap-1 mt-8">
-        <span className="text-xs font-bold uppercase tracking-widest opacity-60">🔒 Pantalla bloqueada</span>
-        <span className="text-4xl font-black tabular-nums">{tiempoRestante}</span>
-      </div>
+      <span className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-suave">
+        <Icono nombre="candado" className="text-base" />
+        Pantalla bloqueada
+      </span>
 
-      <div className="flex items-center justify-center gap-8 w-full max-w-md">
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-sm font-bold uppercase tracking-wide opacity-60 text-center">
-            {equipoLocal.nombre}
-          </span>
-          <span className="text-5xl font-black tabular-nums">{scoreLocal}</span>
-        </div>
-        <span className="text-2xl font-black opacity-30">-</span>
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-sm font-bold uppercase tracking-wide opacity-60 text-center">
-            {equipoVisitante.nombre}
-          </span>
-          <span className="text-5xl font-black tabular-nums">{scoreVisitante}</span>
-        </div>
+      <div className="w-full max-w-md">
+        <TableroEstadio
+          local={equipoLocal.nombre}
+          visitante={equipoVisitante.nombre}
+          marcadorLocal={scoreLocal}
+          marcadorVisitante={scoreVisitante}
+          enJuego
+          linea={<span className="font-display italic font-extrabold text-3xl tabular-nums tracking-normal">{tiempoRestante}</span>}
+        />
       </div>
 
       <button
@@ -79,11 +76,12 @@ export function LockOverlay({
         onPointerLeave={cancelHold}
         onPointerCancel={cancelHold}
         aria-label="Mantén presionado para desbloquear"
-        className={`relative mb-8 w-full max-w-xs rounded-full py-6 flex items-center justify-center font-black text-lg shadow-xl select-none transition-transform ${
-          holding ? "scale-95 bg-foreground/20" : "bg-foreground/10"
+        className={`relative mb-8 w-full max-w-xs rounded-[10px] border-2 py-6 px-4 flex items-center justify-center gap-2 font-black text-lg shadow-xl select-none transition-transform ${
+          holding ? "scale-95 bg-panuelo border-panuelo text-[#0A1A33]" : "bg-panel border-texto/20"
         }`}
       >
-        {holding ? "🔓 Desbloqueando…" : "🔒 Mantén presionado para desbloquear"}
+        <Icono nombre={holding ? "candado-abierto" : "candado"} className="text-2xl shrink-0" />
+        {holding ? "Desbloqueando…" : "Mantén presionado para desbloquear"}
       </button>
     </div>
   );

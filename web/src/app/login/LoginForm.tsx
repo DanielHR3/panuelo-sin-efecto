@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { destinoTrasLogin } from "@/lib/destino-login";
 import type { Rol } from "@/lib/session";
+import { Marca } from "../_publico/Marca";
+
+const INPUT =
+  "p-3 rounded-lg border-2 border-texto/20 bg-fondo text-texto font-normal focus:outline-none focus:border-panuelo-texto";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -43,11 +47,13 @@ export default function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-8 flex flex-col gap-5"
+      className="panel w-full max-w-sm p-8 flex flex-col gap-5"
     >
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Pañuelo sin efecto</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+      <div className="flex flex-col gap-3">
+        <h1>
+          <Marca tamano={44} />
+        </h1>
+        <p className="text-sm text-suave">
           Árbitros y administradores de liga entran por aquí.
         </p>
       </div>
@@ -60,7 +66,7 @@ export default function LoginForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={INPUT}
         />
       </label>
 
@@ -72,12 +78,12 @@ export default function LoginForm() {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-transparent font-normal focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={INPUT}
         />
       </label>
 
       {error && (
-        <p role="alert" className="text-sm font-semibold text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm font-semibold text-peligro">
           {error}
         </p>
       )}
@@ -85,21 +91,21 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+        className="boton-panuelo text-lg px-5 py-3 disabled:opacity-50 transition-transform active:scale-95"
       >
         {loading ? "Entrando…" : "Entrar"}
       </button>
 
-      <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-col gap-1.5 border-t border-slate-200 dark:border-zinc-800 pt-4">
+      <div className="text-xs text-suave flex flex-col gap-1.5 border-t border-texto/10 pt-4">
         <p>
-          <span className="font-semibold text-slate-700 dark:text-slate-300">Árbitro:</span> usa el correo y
+          <span className="font-semibold text-texto">Árbitro:</span> usa el correo y
           la contraseña que te dio el administrador de tu liga. Verás tus partidos asignados.{" "}
-          <Link href="/arbitrar" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+          <Link href="/arbitrar" className="font-semibold text-panuelo-texto hover:underline">
             ¿Sin cuenta? Arbitra un partido sin registrarte.
           </Link>
         </p>
         <p>
-          <span className="font-semibold text-slate-700 dark:text-slate-300">Administrador:</span> entras al
+          <span className="font-semibold text-texto">Administrador:</span> entras al
           panel para cargar ligas, equipos, jugadores, árbitros y partidos.
         </p>
         <Link href="/" className="font-semibold hover:underline mt-1">

@@ -34,7 +34,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4"
       onClick={onCancel}
     >
       <div
@@ -44,22 +44,22 @@ export function ConfirmModal({
         aria-label={titulo}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-background rounded-[2rem] p-6 shadow-2xl flex flex-col gap-5 border border-foreground/10 outline-none"
+        className="w-full max-w-md bg-panel rounded-[10px] p-6 shadow-2xl flex flex-col gap-5 border border-texto/15 border-t-4 border-t-panuelo outline-none"
       >
         <div className="flex flex-col gap-1">
-          <h3 className="text-2xl font-black">{titulo}</h3>
-          {detalle && <p className="text-sm font-semibold text-foreground/60">{detalle}</p>}
+          <h3 className="titulo-estadio text-2xl leading-tight">{titulo}</h3>
+          {detalle && <p className="text-sm font-semibold text-suave">{detalle}</p>}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onCancel}
-            className="h-16 rounded-2xl bg-foreground/5 font-bold text-lg active:scale-95 transition-transform"
+            className="h-16 rounded-lg bg-panel-alterno border border-texto/15 font-bold text-lg active:scale-95 transition-transform"
           >
             Cancelar
           </button>
           <button
             onClick={onConfirm}
-            className="h-16 rounded-2xl bg-panuelo text-[#1a1600] font-black text-lg shadow-lg active:scale-95 transition-transform"
+            className="boton-panuelo h-16 text-xl shadow-lg active:scale-95 transition-transform"
           >
             {confirmarTexto}
           </button>

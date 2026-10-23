@@ -5,6 +5,8 @@ import type { AnotadorPublico, ResumenPartido } from "@/lib/types";
 import { Despertando } from "../../_publico/Despertando";
 import { EncabezadoPublico } from "../../_publico/EncabezadoPublico";
 import { fechaHora } from "../../_publico/formato";
+import { TableroEstadio } from "../../_publico/Marcador";
+import { Icono } from "@/components/icons/Icono";
 import { CompartirResultado } from "./CompartirResultado";
 
 export const dynamic = "force-dynamic";
@@ -43,27 +45,20 @@ function Resumen({ p }: { p: ResumenPartido }) {
 
   return (
     <>
-      <section className="campo-yardas">
-        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-10 text-tiza flex flex-col gap-4">
-          <p className="text-sm font-semibold opacity-90">
-            {estado} · {fechaHora(p.fechaHora)}
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 sm:gap-8">
-            <p className="font-black tabular-nums tracking-tighter text-7xl sm:text-8xl leading-none whitespace-nowrap col-span-2 sm:col-span-1 sm:order-2 text-center">
-              {p.marcadorLocal}
-              <span className="opacity-50 mx-2 sm:mx-4">–</span>
-              {p.marcadorVisitante}
-            </p>
-            <p className="text-xl sm:text-3xl font-bold leading-tight min-w-0 [overflow-wrap:anywhere] sm:order-1">
-              {p.equipoLocal.nombre}
-            </p>
-            <p className="text-xl sm:text-3xl font-bold leading-tight text-right min-w-0 [overflow-wrap:anywhere] sm:order-3">
-              {p.equipoVisitante.nombre}
-            </p>
-          </div>
+      <section className="border-b border-texto/10">
+        <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-4">
+          <TableroEstadio
+            local={p.equipoLocal.nombre}
+            visitante={p.equipoVisitante.nombre}
+            marcadorLocal={p.marcadorLocal}
+            marcadorVisitante={p.marcadorVisitante}
+            enJuego={p.estado === "EN_CURSO"}
+            linea={`${estado} · ${fechaHora(p.fechaHora)}`}
+          />
           {p.mvp && (
-            <p className="text-sm sm:text-base">
-              <span className="text-panuelo font-black">MVP</span>{" "}
+            <p className="flex items-center gap-2 text-sm sm:text-base">
+              <Icono nombre="trofeo" className="text-panuelo-texto text-lg shrink-0" />
+              <span className="font-display italic font-extrabold uppercase tracking-[0.08em] text-panuelo-texto">MVP</span>{" "}
               <span className="font-semibold">
                 #{p.mvp.numeroJersey} {p.mvp.nombre}
               </span>
@@ -84,20 +79,20 @@ function Resumen({ p }: { p: ResumenPartido }) {
           </section>
         )}
 
-        <dl className="text-sm flex flex-col gap-1 border-t border-foreground/10 pt-4">
+        <dl className="panel text-sm flex flex-col gap-1 px-4 py-3">
           {p.arbitros.length > 0 && (
             <div className="flex gap-2">
-              <dt className="opacity-60 w-20 shrink-0">Arbitró</dt>
+              <dt className="text-suave w-20 shrink-0">Arbitró</dt>
               <dd className="font-semibold">{p.arbitros.map((a) => a.nombre).join(", ")}</dd>
             </div>
           )}
           <div className="flex gap-2">
-            <dt className="opacity-60 w-20 shrink-0">{p.liga.esRapida ? "Partido" : "Liga"}</dt>
+            <dt className="text-suave w-20 shrink-0">{p.liga.esRapida ? "Partido" : "Liga"}</dt>
             <dd className="font-semibold">
               {p.liga.esRapida ? (
                 "Partido rápido"
               ) : (
-                <Link href={`/categoria/${p.categoria.id}`} className="hover:underline">
+                <Link href={`/categoria/${p.categoria.id}`} className="text-panuelo-texto hover:underline">
                   {p.liga.nombre} · {p.categoria.nombre}
                 </Link>
               )}
@@ -107,7 +102,7 @@ function Resumen({ p }: { p: ResumenPartido }) {
 
         <CompartirResultado resumen={p} />
 
-        <p className="text-xs opacity-60">
+        <p className="text-xs text-suave">
           Marcador registrado con Pañuelo sin efecto.{" "}
           <Link href="/arbitrar" className="font-semibold hover:underline">
             Arbitra tu propio partido sin cuenta.
@@ -130,9 +125,9 @@ function ListaAnotadores({
   const der = alineacion === "der";
   return (
     <div className={`min-w-0 ${der ? "text-right" : ""}`}>
-      <h2 className="font-bold text-sm border-b-2 border-foreground/80 pb-1 mb-2 truncate">{titulo}</h2>
+      <h2 className="titulo-estadio text-lg leading-none border-b-2 border-texto pb-1 mb-2 truncate">{titulo}</h2>
       {filas.length === 0 ? (
-        <p className="text-sm opacity-60">Sin anotaciones</p>
+        <p className="text-sm text-suave">Sin anotaciones</p>
       ) : (
         <ul className="flex flex-col gap-1 text-sm">
           {filas.map((a) => (
@@ -143,13 +138,13 @@ function ListaAnotadores({
               <span className="min-w-0 truncate">
                 {a.nombre ? (
                   <>
-                    <span className="opacity-60">#{a.numeroJersey}</span> {a.nombre}
+                    <span className="text-suave">#{a.numeroJersey}</span> {a.nombre}
                   </>
                 ) : (
-                  <span className="opacity-60">Sin jugador</span>
+                  <span className="text-suave">Sin jugador</span>
                 )}
               </span>
-              <span className="font-black tabular-nums shrink-0">{a.puntos}</span>
+              <span className="font-display italic font-extrabold text-base tabular-nums shrink-0">{a.puntos}</span>
             </li>
           ))}
         </ul>

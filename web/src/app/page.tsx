@@ -4,7 +4,7 @@ import type { CategoriaPublica, LigaPublica, PartidoPublico, ResumenPublico } fr
 import { Despertando } from "./_publico/Despertando";
 import { EncabezadoPublico } from "./_publico/EncabezadoPublico";
 import { Lideres } from "./_publico/Lideres";
-import { FilaMarcador, FilaProximo, MarcadorHero } from "./_publico/Marcador";
+import { FilaMarcador, FilaProximo, LISTA_PARTIDOS, MarcadorHero } from "./_publico/Marcador";
 import { TablaPosiciones } from "./_publico/TablaPosiciones";
 
 export const dynamic = "force-dynamic";
@@ -35,16 +35,16 @@ export default async function LandingPage() {
     <div className="flex-1 flex flex-col">
       <EncabezadoPublico />
 
-      <section className="campo-yardas">
-        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14">
+      <section className="border-b border-texto/10">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
           {destacado ? (
             <MarcadorHero partido={destacado.partido} etiqueta={destacado.etiqueta} liga={destacado.liga} />
           ) : (
-            <div className="text-tiza flex flex-col gap-5 max-w-2xl">
-              <h1 className="font-black text-4xl sm:text-6xl leading-[0.95] tracking-tight">
+            <div className="flex flex-col gap-5 max-w-2xl">
+              <h1 className="titulo-estadio text-5xl sm:text-7xl leading-[0.92]">
                 El marcador de tu liga, en vivo y sin papel.
               </h1>
-              <p className="text-lg opacity-90 max-w-prose">
+              <p className="text-lg text-suave max-w-prose">
                 Los árbitros anotan desde el celular, aunque no haya señal en el campo. Aquí
                 aparecen los resultados, la tabla de posiciones y las estadísticas de cada
                 jugador en cuanto termina el partido.
@@ -52,11 +52,11 @@ export default async function LandingPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <Link
                   href="/arbitrar"
-                  className="px-5 py-3 rounded-xl bg-panuelo text-[#1a1600] font-bold shadow-lg active:scale-95 transition-transform"
+                  className="boton-panuelo px-5 py-3 text-lg active:scale-95 transition-transform"
                 >
                   Arbitrar un partido ahora
                 </Link>
-                <span className="text-sm opacity-80">Sin cuenta ni contraseña.</span>
+                <span className="text-sm text-suave">Sin cuenta ni contraseña.</span>
               </div>
             </div>
           )}
@@ -73,8 +73,8 @@ export default async function LandingPage() {
         )}
       </main>
 
-      <footer className="border-t border-foreground/10">
-        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-3 text-sm opacity-70">
+      <footer className="border-t border-texto/10">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-3 text-sm text-suave">
           <span>Pañuelo sin efecto · arbitraje de flag football</span>
           <span className="flex flex-wrap gap-x-4 gap-y-1">
             <Link href="/arbitrar" className="font-semibold hover:underline">
@@ -90,11 +90,14 @@ export default async function LandingPage() {
   );
 }
 
+/** Etiqueta de sección: mayúsculas chicas con tracking, en texto suave. */
+const ETIQUETA = "text-xs font-bold uppercase tracking-[0.14em] text-suave";
+
 function SinLigas() {
   return (
     <section className="max-w-prose flex flex-col gap-3">
-      <h2 className="font-bold text-2xl tracking-tight">Todavía no hay ligas registradas</h2>
-      <p className="opacity-70">
+      <h2 className="titulo-estadio text-3xl">Todavía no hay ligas registradas</h2>
+      <p className="text-suave">
         Cuando un administrador registre su liga y sus árbitros empiecen a anotar, los marcadores
         y las tablas aparecerán en esta página sin que nadie tenga que capturarlos.
       </p>
@@ -110,19 +113,19 @@ function SeccionLiga({ liga }: { liga: LigaPublica }) {
       <header className="flex items-center gap-3">
         {liga.logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- URL externa configurada por la liga
-          <img src={liga.logoUrl} alt="" className="w-12 h-12 rounded-xl object-cover bg-foreground/5" />
+          <img src={liga.logoUrl} alt="" className="w-12 h-12 rounded-lg object-cover bg-panel" />
         )}
-        <h2 className="font-black text-2xl sm:text-3xl tracking-tight">{liga.nombre}</h2>
+        <h2 className="titulo-estadio text-3xl sm:text-4xl leading-none">{liga.nombre}</h2>
       </header>
       {liga.categorias.length === 0 ? (
-        <p className="text-sm opacity-60">Esta liga todavía no tiene categorías.</p>
+        <p className="text-sm text-suave">Esta liga todavía no tiene categorías.</p>
       ) : (
         <>
           {conActividad.map((cat) => (
             <BloqueCategoria key={cat.id} categoria={cat} />
           ))}
           {vacias.length > 0 && (
-            <p className="text-sm opacity-60">
+            <p className="text-sm text-suave">
               Sin partidos todavía: {vacias.map((c) => c.nombre).join(", ")}.
             </p>
           )}
@@ -140,35 +143,38 @@ function tieneActividad(cat: CategoriaPublica): boolean {
 function BloqueCategoria({ categoria }: { categoria: CategoriaPublica }) {
   return (
     <article className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-x-10 gap-y-6">
-      <div className="lg:col-span-2 flex items-baseline justify-between gap-3 border-b-2 border-foreground/80 pb-2">
-        <h3 className="font-bold text-xl">{categoria.nombre}</h3>
-        <Link href={`/categoria/${categoria.id}`} className="text-sm font-semibold hover:underline">
+      <div className="lg:col-span-2 flex items-baseline justify-between gap-3 border-b-2 border-texto pb-2">
+        <h3 className="titulo-estadio text-2xl leading-none">{categoria.nombre}</h3>
+        <Link
+          href={`/categoria/${categoria.id}`}
+          className="text-sm font-display font-bold uppercase tracking-[0.08em] text-panuelo-texto hover:underline"
+        >
           Ver todo
         </Link>
       </div>
 
       <div className="flex flex-col gap-2">
-        <h4 className="text-sm font-semibold opacity-70">Tabla de posiciones</h4>
+        <h4 className={ETIQUETA}>Tabla de posiciones</h4>
         <TablaPosiciones filas={categoria.tabla} compacta />
       </div>
 
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <h4 className="text-sm font-semibold opacity-70">Resultados</h4>
+        <div className="flex flex-col gap-2">
+          <h4 className={ETIQUETA}>Resultados</h4>
           {categoria.recientes.length === 0 ? (
-            <p className="text-sm opacity-60 py-3">Aún no se juega el primer partido.</p>
+            <p className="text-sm text-suave py-3">Aún no se juega el primer partido.</p>
           ) : (
-            <ul>{categoria.recientes.map((p) => <FilaMarcador key={p.id} partido={p} />)}</ul>
+            <ul className={LISTA_PARTIDOS}>{categoria.recientes.map((p) => <FilaMarcador key={p.id} partido={p} />)}</ul>
           )}
         </div>
         {categoria.proximos.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <h4 className="text-sm font-semibold opacity-70">Próximos</h4>
-            <ul>{categoria.proximos.map((p) => <FilaProximo key={p.id} partido={p} />)}</ul>
+          <div className="flex flex-col gap-2">
+            <h4 className={ETIQUETA}>Próximos</h4>
+            <ul className={LISTA_PARTIDOS}>{categoria.proximos.map((p) => <FilaProximo key={p.id} partido={p} />)}</ul>
           </div>
         )}
-        <div className="flex flex-col gap-1">
-          <h4 className="text-sm font-semibold opacity-70">Líderes de puntos</h4>
+        <div className="flex flex-col gap-2">
+          <h4 className={ETIQUETA}>Líderes de puntos</h4>
           <Lideres lideres={categoria.lideres} />
         </div>
       </div>

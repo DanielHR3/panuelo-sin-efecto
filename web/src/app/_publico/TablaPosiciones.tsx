@@ -11,32 +11,41 @@ const COLUMNAS: { clave: keyof FilaTabla; titulo: string; abreviatura: string }[
   { clave: "pts", titulo: "Puntos", abreviatura: "PTS" },
 ];
 
+/**
+ * El líder (primera fila, ya con partidos) lleva sus puntos en dorado. Solo la
+ * primera fila: cae en `panel`, donde el dorado del modo claro pasa 4.5:1
+ * (sobre `panel-alterno` no llega).
+ */
+function esLider(f: FilaTabla, i: number): boolean {
+  return i === 0 && f.posicion === 1 && f.pj > 0;
+}
+
 export function TablaPosiciones({ filas, compacta = false }: { filas: FilaTabla[]; compacta?: boolean }) {
   if (filas.length === 0) {
-    return <p className="text-sm opacity-60 py-3">Esta categoría todavía no tiene equipos.</p>;
+    return <p className="text-sm text-suave py-3">Esta categoría todavía no tiene equipos.</p>;
   }
   const columnas = compacta ? COLUMNAS.filter((c) => ["pj", "pg", "pp", "dif", "pts"].includes(c.clave)) : COLUMNAS;
   return (
-    <div className="overflow-x-auto -mx-1 px-1">
+    <div className="panel overflow-x-auto">
       <table className="w-full text-sm tabular-nums">
         <thead>
-          <tr className="text-xs opacity-60 border-b border-foreground/10">
-            <th scope="col" className="text-left font-semibold py-2 pr-2 w-6">#</th>
-            <th scope="col" className="text-left font-semibold py-2">Equipo</th>
+          <tr className="text-[11px] uppercase tracking-[0.12em] text-suave bg-panel border-b border-texto/10">
+            <th scope="col" className="text-left font-bold py-2 pl-3 pr-2 w-6">#</th>
+            <th scope="col" className="text-left font-bold py-2">Equipo</th>
             {columnas.map((c) => (
-              <th key={c.clave} scope="col" className="text-right font-semibold py-2 pl-2">
+              <th key={c.clave} scope="col" className="text-right font-bold py-2 pl-2 last:pr-3">
                 <abbr title={c.titulo} className="no-underline">{c.abreviatura}</abbr>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {filas.map((f) => (
+          {filas.map((f, i) => (
             <tr
               key={f.equipoId}
-              className={`border-b border-foreground/5 last:border-b-0 ${f.posicion === 1 && f.pj > 0 ? "font-semibold" : ""}`}
+              className={`odd:bg-panel even:bg-panel-alterno ${f.posicion === 1 && f.pj > 0 ? "font-semibold" : ""}`}
             >
-              <td className="py-2 pr-2 opacity-60">{f.posicion}</td>
+              <td className="py-2 pl-3 pr-2 text-suave">{f.posicion}</td>
               <td className="py-2">
                 <span className="flex items-center gap-2 min-w-0">
                   <span
@@ -47,7 +56,10 @@ export function TablaPosiciones({ filas, compacta = false }: { filas: FilaTabla[
                 </span>
               </td>
               {columnas.map((c) => (
-                <td key={c.clave} className={`text-right py-2 pl-2 ${c.clave === "pts" ? "font-bold" : ""}`}>
+                <td
+                  key={c.clave}
+                  className={`text-right py-2 pl-2 last:pr-3 ${c.clave === "pts" ? `font-display italic font-extrabold text-base ${esLider(f, i) ? "text-panuelo-texto" : ""}` : ""}`}
+                >
                   {c.clave === "dif" && f.dif > 0 ? `+${f.dif}` : f[c.clave]}
                 </td>
               ))}

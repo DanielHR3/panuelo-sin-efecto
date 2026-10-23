@@ -1,17 +1,11 @@
 import Link from "next/link";
 import { authedFetch } from "@/lib/server-api";
-import { ESTADO_BADGE, ESTADO_LABEL } from "@/lib/estado-partido";
+import { Icono, type NombreIcono } from "@/components/icons/Icono";
+import { ESTADO_BADGE, ESTADO_BADGE_BASE, ESTADO_LABEL } from "@/lib/estado-partido";
 import type { Liga, Equipo, EquipoConRoster, Partido } from "@/lib/types";
 import { CountUpNumber } from "./_components/CountUpNumber";
-
-// Colores literales por estadística: Tailwind escanea el código fuente en
-// busca de nombres de clase completos, no de fragmentos armados en runtime.
-const STAT_ACCENT = {
-  ligas: { chip: "bg-amber-100 dark:bg-amber-950/40" },
-  equipos: { chip: "bg-blue-100 dark:bg-blue-950/40" },
-  jugadores: { chip: "bg-emerald-100 dark:bg-emerald-950/40" },
-  partidos: { chip: "bg-orange-100 dark:bg-orange-950/40" },
-} as const;
+import { Vacio } from "./_components/Vacio";
+import { BOTON_PRIMARIO, ROTULO, TITULO_PAGINA } from "./_components/estilos";
 
 export default async function AdminDashboard() {
   const [ligas, yo] = await Promise.all([
@@ -43,58 +37,53 @@ export default async function AdminDashboard() {
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">
-            Bienvenido{yo ? `, ${yo.nombre.split(" ")[0]}` : ""} 👋
+          <h1 className={`${TITULO_PAGINA} flex items-center gap-2`}>
+            Bienvenido{yo ? `, ${yo.nombre.split(" ")[0]}` : ""}
+            <Icono nombre="saludo" className="text-panuelo-texto" />
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2">Así van tus ligas hoy.</p>
+          <p className="text-suave mt-2">Así van tus ligas hoy.</p>
         </div>
-        <Link
-          href="/admin/ligas"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-blue-500/30 transition-all active:scale-95 w-full md:w-auto text-center"
-        >
+        <Link href="/admin/ligas" className={`${BOTON_PRIMARIO} w-full md:w-auto text-center`}>
           + Nueva liga
         </Link>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <StatCard title="Ligas activas" value={ligas.length} icon="🏆" accent={STAT_ACCENT.ligas} delayMs={0} />
-        <StatCard title="Equipos registrados" value={equipos.length} icon="🛡️" accent={STAT_ACCENT.equipos} delayMs={120} />
-        <StatCard title="Jugadores registrados" value={totalJugadores} icon="🏃" accent={STAT_ACCENT.jugadores} delayMs={240} />
-        <StatCard title="Partidos por jugar" value={partidosPorJugar} icon="🏈" accent={STAT_ACCENT.partidos} delayMs={360} />
+        <StatCard title="Ligas activas" value={ligas.length} icon="trofeo" delayMs={0} />
+        <StatCard title="Equipos registrados" value={equipos.length} icon="escudo" delayMs={120} />
+        <StatCard title="Jugadores registrados" value={totalJugadores} icon="jugador" delayMs={240} />
+        <StatCard title="Partidos por jugar" value={partidosPorJugar} icon="campo" delayMs={360} />
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 p-8 shadow-sm mt-8">
-        <h3 className="font-bold text-xl mb-4">Actividad reciente</h3>
+      <section className="mt-8">
+        <h3 className="titulo-estadio text-xl mb-3">Actividad reciente</h3>
         {recientes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-center">
-            <span className="text-5xl mb-4 opacity-50">🏈</span>
-            <p className="text-lg font-medium text-slate-600 dark:text-slate-300">
-              Todavía no hay partidos programados.
-            </p>
-            <p className="text-sm mt-1 max-w-xs">
-              Crea una liga, da de alta sus equipos y programa el primer partido para verlo aquí.
-            </p>
-          </div>
+          <Vacio icono="touchdown" texto="Todavía no hay partidos programados.">
+            Crea una liga, da de alta sus equipos y programa el primer partido para verlo aquí.
+          </Vacio>
         ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-zinc-800">
+          <ul className="panel overflow-hidden">
             {recientes.map((partido) => {
               const local = equipos.find((e) => e.id === partido.equipoLocalId)?.nombre ?? "?";
               const visitante = equipos.find((e) => e.id === partido.equipoVisitanteId)?.nombre ?? "?";
               return (
-                <li key={partido.id} className="py-3 flex items-center justify-between gap-3">
+                <li
+                  key={partido.id}
+                  className="px-4 py-3 flex items-center justify-between gap-3 odd:bg-panel even:bg-panel-alterno"
+                >
                   <div className="min-w-0">
-                    <p className="font-medium text-sm truncate">
+                    <p className="font-semibold text-sm truncate">
                       {local}{" "}
-                      <span className="tabular-nums text-slate-400 dark:text-slate-500">
+                      <span className="font-display italic font-extrabold text-base tabular-nums px-1">
                         {partido.marcadorLocal}–{partido.marcadorVisitante}
                       </span>{" "}
                       {visitante}
                     </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-suave mt-0.5">
                       {new Date(partido.fechaHora).toLocaleDateString("es-MX", { dateStyle: "medium" })}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 ${ESTADO_BADGE[partido.estado]}`}>
+                  <span className={`${ESTADO_BADGE_BASE} ${ESTADO_BADGE[partido.estado]}`}>
                     {ESTADO_LABEL[partido.estado]}
                   </span>
                 </li>
@@ -102,7 +91,7 @@ export default async function AdminDashboard() {
             })}
           </ul>
         )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -111,24 +100,26 @@ function StatCard({
   title,
   value,
   icon,
-  accent,
   delayMs,
 }: {
   title: string;
   value: number;
-  icon: string;
-  accent: { chip: string };
+  icon: NombreIcono;
   delayMs: number;
 }) {
   return (
-    <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm flex items-start justify-between">
+    <div className="panel p-5 flex items-start justify-between gap-3 relative overflow-hidden">
+      {/* Franja de pañuelo: el acento de cada tarjeta del marcador. */}
+      <span aria-hidden="true" className="absolute left-0 top-0 bottom-0 w-1 bg-panuelo" />
       <div>
-        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">{title}</p>
-        <h3 className="text-4xl font-black tabular-nums">
+        <p className={`${ROTULO} mb-2`}>{title}</p>
+        <h3 className="font-display italic font-extrabold text-5xl leading-none tabular-nums">
           <CountUpNumber value={value} delayMs={delayMs} />
         </h3>
       </div>
-      <div className={`text-3xl p-4 rounded-2xl ${accent.chip}`}>{icon}</div>
+      <div className="text-2xl p-3 rounded-lg bg-panel-alterno text-suave">
+        <Icono nombre={icon} />
+      </div>
     </div>
   );
 }

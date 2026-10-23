@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { Icono } from "@/components/icons/Icono";
 import { textoCompartir } from "@/lib/compartir";
 import type { ResumenPartido } from "@/lib/types";
 
@@ -50,22 +51,23 @@ export function CompartirResultado({ resumen }: { resumen: ResumenPartido }) {
         <button
           type="button"
           onClick={() => void (puedeCompartir ? compartir() : copiar())}
-          className="px-5 py-3 rounded-xl bg-panuelo text-[#1a1600] font-black shadow-lg active:scale-95 transition-transform"
+          className="boton-panuelo px-5 py-3 text-lg inline-flex items-center gap-2 active:scale-95 transition-transform"
         >
+          <Icono nombre="compartir" className="shrink-0" />
           {puedeCompartir ? "Compartir resultado" : "Copiar resultado"}
         </button>
         {puedeCompartir && (
           <button
             type="button"
             onClick={() => void copiar()}
-            className="px-4 py-3 rounded-xl bg-foreground/10 font-semibold"
+            className="panel px-4 py-3 rounded-lg font-display font-bold uppercase tracking-[0.06em]"
           >
             Copiar texto
           </button>
         )}
       </div>
       {aviso && (
-        <p role="status" className="text-sm opacity-80">
+        <p role="status" className="text-sm text-suave">
           {aviso}
         </p>
       )}

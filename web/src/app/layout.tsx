@@ -1,12 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
+import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ServiceWorkerRegister } from "./sw-register";
 
-const outfit = Outfit({
-  variable: "--font-outfit",
+const barlow = Barlow({
+  variable: "--font-barlow",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow-condensed",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -35,7 +43,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false, // Fundamental para evitar zoom accidental al tocar botones rápido
-  themeColor: "#09090b",
+  themeColor: "#0A1A33",
 };
 
 export default function RootLayout({
@@ -47,7 +55,7 @@ export default function RootLayout({
     // suppressHydrationWarning: next-themes fija la clase "dark" antes de
     // hidratar (inline script) para no forzar el modo oscuro ni parpadear.
     <html lang="es" suppressHydrationWarning>
-      <body className={`${outfit.variable} antialiased min-h-screen flex flex-col`}>
+      <body className={`${barlow.variable} ${barlowCondensed.variable} antialiased min-h-screen flex flex-col`}>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
       </body>

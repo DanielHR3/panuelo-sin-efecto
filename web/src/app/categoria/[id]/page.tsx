@@ -5,10 +5,13 @@ import type { CategoriaPublicaDetalle } from "@/lib/types";
 import { Despertando } from "../../_publico/Despertando";
 import { EncabezadoPublico } from "../../_publico/EncabezadoPublico";
 import { Lideres } from "../../_publico/Lideres";
-import { FilaMarcador, FilaProximo } from "../../_publico/Marcador";
+import { FilaMarcador, FilaProximo, LISTA_PARTIDOS } from "../../_publico/Marcador";
 import { TablaPosiciones } from "../../_publico/TablaPosiciones";
 
 export const dynamic = "force-dynamic";
+
+/** Título de sección: condensada itálica sobre una línea de cal. */
+const TITULO_SECCION = "titulo-estadio text-2xl leading-none border-b-2 border-texto pb-2";
 
 export default async function CategoriaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,34 +27,34 @@ export default async function CategoriaPage({ params }: { params: Promise<{ id: 
         ) : (
           <>
             <header className="flex flex-col gap-1">
-              <Link href="/" className="text-sm font-semibold opacity-70 hover:underline">
+              <Link href="/" className="text-xs font-bold uppercase tracking-[0.14em] text-suave hover:underline">
                 ← {resultado.data.liga.nombre}
               </Link>
-              <h1 className="font-black text-3xl sm:text-4xl tracking-tight">{resultado.data.nombre}</h1>
+              <h1 className="titulo-estadio text-4xl sm:text-6xl leading-none">{resultado.data.nombre}</h1>
             </header>
 
             <section className="flex flex-col gap-2">
-              <h2 className="font-bold text-xl border-b-2 border-foreground/80 pb-2">Tabla de posiciones</h2>
+              <h2 className={TITULO_SECCION}>Tabla de posiciones</h2>
               <TablaPosiciones filas={resultado.data.tabla} />
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-8">
               <section className="flex flex-col gap-2">
-                <h2 className="font-bold text-xl border-b-2 border-foreground/80 pb-2">Resultados</h2>
+                <h2 className={TITULO_SECCION}>Resultados</h2>
                 {resultado.data.recientes.length === 0 ? (
-                  <p className="text-sm opacity-60 py-3">Aún no se juega el primer partido.</p>
+                  <p className="text-sm text-suave py-3">Aún no se juega el primer partido.</p>
                 ) : (
-                  <ul>{resultado.data.recientes.map((p) => <FilaMarcador key={p.id} partido={p} />)}</ul>
+                  <ul className={LISTA_PARTIDOS}>{resultado.data.recientes.map((p) => <FilaMarcador key={p.id} partido={p} />)}</ul>
                 )}
                 {resultado.data.proximos.length > 0 && (
                   <>
-                    <h3 className="text-sm font-semibold opacity-70 mt-4">Próximos</h3>
-                    <ul>{resultado.data.proximos.map((p) => <FilaProximo key={p.id} partido={p} />)}</ul>
+                    <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-suave mt-4">Próximos</h3>
+                    <ul className={LISTA_PARTIDOS}>{resultado.data.proximos.map((p) => <FilaProximo key={p.id} partido={p} />)}</ul>
                   </>
                 )}
               </section>
               <section className="flex flex-col gap-2">
-                <h2 className="font-bold text-xl border-b-2 border-foreground/80 pb-2">Líderes de puntos</h2>
+                <h2 className={TITULO_SECCION}>Líderes de puntos</h2>
                 <Lideres lideres={resultado.data.lideres} />
               </section>
             </div>

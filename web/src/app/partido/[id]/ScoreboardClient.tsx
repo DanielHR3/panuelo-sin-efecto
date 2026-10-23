@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { Icono } from "@/components/icons/Icono";
 import { proxyFetch } from "@/lib/proxy-fetch";
 import { calcularMarcador } from "@/lib/marcador";
 import {
@@ -124,7 +125,7 @@ export default function ScoreboardClient({
   partido: PartidoConRoster;
   eventosIniciales: GameEvent[];
 }) {
-  // Los nombres viven en estado: "⇄ Los equipos estaban al revés" los
+  // Los nombres viven en estado: "Los equipos estaban al revés" los
   // intercambia sin recargar. Los ids (y con ellos el marcador) no cambian.
   const [nombres, setNombres] = useState({
     local: partido.equipoLocal.nombre,
@@ -150,6 +151,8 @@ export default function ScoreboardClient({
 
   const vibrate = useHaptics();
   const { resolvedTheme, setTheme } = useTheme();
+  // Hasta montar se pinta el icono del estado claro (igual que el servidor).
+  const montado = useSyncExternalStore(sinSuscripcion, () => true, () => false);
   const screenLock = useScreenLock(LOCK_TIMEOUT_MS, { disabled: flow.step !== "closed" });
   const halfTimer = useHalfTimer(20, {
     thresholdSeconds: 120,
@@ -490,13 +493,13 @@ export default function ScoreboardClient({
   };
 
   return (
-    <main className="flex-1 flex flex-col p-4 max-w-md mx-auto w-full gap-4 select-none relative h-[100dvh]">
-      <header className="flex justify-between items-center glass-panel rounded-3xl p-5 mb-2">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold uppercase tracking-widest opacity-60">
+    <main className="flex-1 flex flex-col p-4 max-w-md mx-auto w-full gap-4 select-none relative h-[100dvh] bg-fondo">
+      <header className="panel flex justify-between items-center gap-3 p-4 mb-2 border-l-[6px] border-l-panuelo">
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-bold uppercase tracking-widest text-suave truncate">
             {partido.categoria?.liga.nombre} · {partido.categoria?.nombre}
           </span>
-          <h1 className="font-extrabold text-2xl tracking-tight">
+          <h1 className="titulo-estadio text-2xl leading-tight">
             {finalizado
               ? "FINALIZADO"
               : corrigiendo
@@ -506,32 +509,36 @@ export default function ScoreboardClient({
                   : "PROGRAMADO"}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => { vibrate(); screenLock.lock(); }}
-            className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
+            className={BOTON_ICONO}
             aria-label="Bloquear pantalla"
           >
-            🔒
+            <Icono nombre="candado" />
           </button>
           <button
             onClick={() => { vibrate(); setTheme(resolvedTheme === "dark" ? "light" : "dark"); }}
-            className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop"
+            className={BOTON_ICONO}
             aria-label="Cambiar tema"
-            // next-themes no conoce el tema en el servidor: el icono puede
-            // diferir al hidratar en modo oscuro; se acepta ese único texto.
-            suppressHydrationWarning
           >
-            {resolvedTheme === "dark" ? "☀️" : "🌙"}
+            <Icono nombre={montado && resolvedTheme === "dark" ? "sol" : "luna"} />
           </button>
         </div>
       </header>
 
       {!finalizado && !corrigiendo && (
-        <div className="glass-panel rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="panel p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold uppercase tracking-widest opacity-60">Cronómetro de Mitad</span>
-            <span className={`text-3xl font-black tabular-nums ${halfTimer.remainingSeconds <= 120 ? "text-red-500" : ""}`}>
+            <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-suave">
+              <Icono nombre="reloj" />
+              Cronómetro de Mitad
+            </span>
+            <span
+              className={`self-start font-display italic font-extrabold text-4xl leading-tight tabular-nums ${
+                halfTimer.remainingSeconds <= 120 ? "bg-visitante text-white rounded-md px-2" : ""
+              }`}
+            >
               {formatTime(halfTimer.remainingSeconds)}
             </span>
           </div>
@@ -545,44 +552,46 @@ export default function ScoreboardClient({
               disabled={halfTimer.running}
               onChange={(e) => halfTimer.setTotalMinutes(Math.max(1, Number(e.target.value) || 1))}
               aria-label="Duración de la mitad en minutos"
-              className="w-14 text-center p-2 rounded-xl bg-foreground/5 font-bold disabled:opacity-40"
+              className="w-14 h-12 text-center p-2 rounded-lg bg-panel-alterno border border-texto/15 font-bold disabled:opacity-40"
             />
             <button
               onClick={() => void handleTimerToggle()}
               disabled={pending}
               aria-label={halfTimer.running ? "Pausar cronómetro" : "Iniciar cronómetro"}
-              className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop text-xl disabled:opacity-40"
+              className={`${BOTON_ICONO} disabled:opacity-40`}
             >
-              {halfTimer.running ? "⏸️" : "▶️"}
+              <Icono nombre={halfTimer.running ? "pausa" : "reproducir"} />
             </button>
             <button
               onClick={handleResetTimer}
               aria-label="Reiniciar cronómetro"
-              className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop text-xl"
+              className={BOTON_ICONO}
             >
-              🔄
+              <Icono nombre="recargar" />
             </button>
             <button
               onClick={() => void handleFinMitad()}
               disabled={pending}
               aria-label="Marcar fin de mitad"
-              className="p-3 rounded-full bg-foreground/5 shadow-sm animate-pop text-xl disabled:opacity-40"
+              className="boton-panuelo p-3 text-2xl shadow-sm animate-pop disabled:opacity-40"
             >
-              🏁
+              <Icono nombre="finalizar" />
             </button>
           </div>
         </div>
       )}
 
       {!finalizado && !corrigiendo && halfTimer.remainingSeconds <= 120 && halfTimer.remainingSeconds > 0 && (
-        <div className="text-center text-sm font-black text-red-500 animate-pulse bg-red-500/10 rounded-xl py-2">
-          ⏰ ¡PAUSA DE LOS 2 MINUTOS!
+        <div className="flex items-center justify-center gap-2 text-center text-sm font-black text-white bg-visitante animate-pulse rounded-lg py-2">
+          <Icono nombre="alerta" className="text-base" />
+          ¡PAUSA DE LOS 2 MINUTOS!
         </div>
       )}
 
       {finalizado && (
-        <div className="text-center text-sm font-black text-blue-500 bg-blue-500/10 rounded-xl py-2">
-          🏁 Partido finalizado
+        <div className="panel flex items-center justify-center gap-2 text-center text-sm font-black py-2">
+          <Icono nombre="finalizar" className="text-base" />
+          Partido finalizado
         </div>
       )}
 
@@ -590,9 +599,10 @@ export default function ScoreboardClient({
         <Link
           href={`/resultado/${partido.id}`}
           onClick={() => vibrate()}
-          className="text-center text-base font-black bg-panuelo text-[#1a1600] rounded-xl py-3 shadow-lg animate-pop"
+          className="boton-panuelo flex items-center justify-center gap-2 text-lg py-3 shadow-lg animate-pop"
         >
-          📤 Compartir resultado
+          <Icono nombre="compartir" className="text-xl" />
+          Compartir resultado
         </Link>
       )}
 
@@ -600,15 +610,17 @@ export default function ScoreboardClient({
         <button
           onClick={() => { vibrate(); setConfirmacion("reabrir"); }}
           disabled={pending}
-          className="text-center text-base font-black bg-foreground/5 border-2 border-foreground/15 rounded-xl py-3 animate-pop disabled:opacity-40"
+          className="panel flex items-center justify-center gap-2 text-base font-black border-2 border-texto/20 py-3 animate-pop disabled:opacity-40"
         >
-          ✏️ Corregir resultado
+          <Icono nombre="corregir" className="text-xl" />
+          Corregir resultado
         </button>
       )}
 
       {corrigiendo && (
-        <div className="text-center text-sm font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 rounded-xl py-2">
-          ✏️ Corrigiendo resultado
+        <div className="panel flex items-center justify-center gap-2 text-center text-sm font-black text-panuelo-texto border-l-[6px] border-l-panuelo py-2">
+          <Icono nombre="corregir" className="text-base" />
+          Corrigiendo resultado
         </div>
       )}
 
@@ -616,38 +628,46 @@ export default function ScoreboardClient({
         <button
           onClick={() => { vibrate(); setConfirmacion("intercambiar"); }}
           disabled={pending}
-          className="text-center text-sm font-black bg-foreground/5 rounded-xl py-3 animate-pop disabled:opacity-40"
+          className="panel flex items-center justify-center gap-2 text-sm font-black py-3 animate-pop disabled:opacity-40"
         >
-          ⇄ Los equipos estaban al revés
+          <Icono nombre="intercambiar" className="text-lg" />
+          Los equipos estaban al revés
         </button>
       )}
 
       {finalizado && registraMvp && (
         <button
           onClick={() => { vibrate(); setMvpModalOpen(true); }}
-          className="text-center text-sm font-black text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 rounded-xl py-2 animate-pop"
+          className="panel flex items-center justify-center gap-2 text-sm font-black text-panuelo-texto border-2 border-panuelo py-3 animate-pop"
         >
-          🏆 {jugadorMvp ? `MVP: #${jugadorMvp.numeroJersey} ${jugadorMvp.nombre}` : "Elegir MVP"}
-          {mvpPendiente ? " · pendiente de sincronizar" : ""}
+          <Icono nombre="trofeo" className="text-lg shrink-0" />
+          <span>
+            {jugadorMvp ? `MVP: #${jugadorMvp.numeroJersey} ${jugadorMvp.nombre}` : "Elegir MVP"}
+            {mvpPendiente ? " · pendiente de sincronizar" : ""}
+          </span>
         </button>
       )}
 
       {error && (
-        <div role="alert" className="text-center text-sm font-semibold text-red-500 bg-red-500/10 rounded-xl py-2">
+        <div role="alert" className="text-center text-sm font-semibold text-white bg-visitante rounded-lg px-3 py-2">
           {error}
         </div>
       )}
 
       {pendientesCount > 0 && (
-        <div className="text-center text-sm font-semibold text-yellow-600 dark:text-yellow-400 bg-yellow-500/10 rounded-xl py-2">
-          📡 {pendientesCount} evento{pendientesCount === 1 ? "" : "s"} pendiente
-          {pendientesCount === 1 ? "" : "s"} de sincronizar
+        <div className="panel flex items-center justify-center gap-2 text-center text-sm font-semibold text-panuelo-texto py-2">
+          <Icono nombre="sin-senal" className="text-base shrink-0" />
+          <span>
+            {pendientesCount} evento{pendientesCount === 1 ? "" : "s"} pendiente
+            {pendientesCount === 1 ? "" : "s"} de sincronizar
+          </span>
         </div>
       )}
 
       {lastEvent && (
-        <div className="text-center text-sm font-semibold text-foreground/70 bg-foreground/5 rounded-xl py-2">
-          📝 {describirEvento(lastEvent, equipoLocal, equipoVisitante)}
+        <div className="panel flex items-center justify-center gap-2 text-center text-sm font-semibold text-suave px-3 py-2">
+          <Icono nombre="silbato" className="text-base shrink-0" />
+          <span>{describirEvento(lastEvent, equipoLocal, equipoVisitante)}</span>
         </div>
       )}
 
@@ -682,23 +702,26 @@ export default function ScoreboardClient({
         <button
           onClick={handleDefplayIntent}
           disabled={finalizado || pending}
-          className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center disabled:opacity-30"
+          className="panel py-4 flex flex-col items-center justify-center gap-1 font-bold animate-pop border-b-4 border-b-visitante shadow-md text-sm text-center leading-tight disabled:opacity-30"
         >
-          🛡️ Sack/<br />Pick/Safety
+          <Icono nombre="escudo" className="text-xl" />
+          <span>Sack/<br />Pick/Safety</span>
         </button>
         <button
           onClick={handleFlagIntent}
           disabled={finalizado || pending}
-          className="glass-panel rounded-2xl py-4 flex flex-col items-center justify-center font-black animate-pop border-b-4 border-b-yellow-400 bg-yellow-500/10 shadow-lg text-lg text-yellow-600 dark:text-yellow-400 disabled:opacity-30"
+          className="boton-panuelo py-4 flex flex-col items-center justify-center gap-1 animate-pop border-b-4 border-b-[#0A1A33]/40 shadow-lg text-xl disabled:opacity-30"
         >
-          🟨 FLAG
+          <Icono nombre="falta" className="text-2xl" />
+          FLAG
         </button>
         <button
           onClick={handleUndo}
           disabled={undoDeshabilitado}
-          className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm disabled:opacity-30"
+          className="panel py-4 flex flex-col items-center justify-center gap-1 font-bold animate-pop border-b-4 border-b-texto/30 text-sm disabled:opacity-30"
         >
-          ↩️ Undo
+          <Icono nombre="deshacer" className="text-xl" />
+          Undo
         </button>
       </div>
 
@@ -706,9 +729,10 @@ export default function ScoreboardClient({
         <button
           onClick={() => void handleFinMitad()}
           disabled={pending}
-          className="text-center text-lg font-black bg-panuelo text-[#1a1600] rounded-2xl py-4 shadow-lg animate-pop mb-6 disabled:opacity-40"
+          className="boton-panuelo flex items-center justify-center gap-2 text-xl py-4 shadow-lg animate-pop mb-6 disabled:opacity-40"
         >
-          🏁 Finalizar de nuevo
+          <Icono nombre="finalizar" className="text-2xl" />
+          Finalizar de nuevo
         </button>
       )}
 
@@ -769,32 +793,25 @@ export default function ScoreboardClient({
   );
 }
 
+const sinSuscripcion = () => () => {};
+
+/** Botón cuadrado de solo ícono (bloqueo, tema, cronómetro): 48 px de lado. */
+const BOTON_ICONO =
+  "p-3 rounded-lg bg-panel-alterno border border-texto/15 text-2xl shadow-sm animate-pop";
+
 // Tailwind escanea el código fuente buscando nombres de clase completos y
 // literales: construir "bg-" + variable en tiempo de ejecución no genera CSS.
 // Este mapa mantiene cada clase completa como string literal para que el
 // escáner las encuentre, y en runtime solo se elige qué entrada usar.
-const TEAM_STYLES: Record<
-  TeamSide,
-  { border: string; gradient: string; text: string; bg: string; bgSoft: string; shadow: string }
-> = {
-  local: {
-    border: "border-t-team-a",
-    gradient: "from-team-a/10",
-    text: "text-team-a",
-    bg: "bg-team-a",
-    bgSoft: "bg-team-a/20",
-    shadow: "shadow-team-a/30",
-  },
-  visitante: {
-    border: "border-t-team-b",
-    gradient: "from-team-b/10",
-    text: "text-team-b",
-    bg: "bg-team-b",
-    bgSoft: "bg-team-b/20",
-    shadow: "shadow-team-b/30",
-  },
+const TEAM_STYLES: Record<TeamSide, { banda: string; borde: string }> = {
+  local: { banda: "bg-local", borde: "border-local" },
+  visitante: { banda: "bg-visitante", borde: "border-visitante" },
 };
 
+/**
+ * Panel de equipo como zona de anotación: banda del color del equipo con su
+ * nombre, el marcador sobre la placa en el pasto y los botones de puntos.
+ */
 function TeamPanel({
   equipo,
   score,
@@ -810,33 +827,36 @@ function TeamPanel({
 }) {
   const c = TEAM_STYLES[side];
   return (
-    <div
-      className={`glass-panel rounded-[2rem] p-5 flex flex-col items-center justify-between border-t-8 ${c.border} relative overflow-hidden shadow-2xl`}
-    >
-      <div className={`absolute inset-0 bg-gradient-to-b ${c.gradient} to-transparent pointer-events-none`} />
-      <h2 className="text-2xl font-black tracking-widest uppercase text-center">{equipo.nombre}</h2>
-      <span className={`text-[7rem] leading-[1.1] font-black tracking-tighter tabular-nums drop-shadow-2xl ${c.text}`}>
-        {score}
-      </span>
-      <div className="grid grid-cols-3 gap-2 w-full z-10">
+    <div className="panel overflow-hidden flex flex-col shadow-lg">
+      <div className={`${c.banda} text-white px-4 py-2`}>
+        <h2 className="titulo-estadio text-2xl tracking-[0.06em] text-center leading-tight break-words">
+          {equipo.nombre}
+        </h2>
+      </div>
+      <div className="franjas-campo flex items-center justify-center px-4 py-3">
+        <span className="bg-fondo rounded-lg min-w-36 px-6 text-center font-display italic font-extrabold text-[6.5rem] leading-[1.05] tabular-nums">
+          {score}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 w-full p-3">
         <button
           onClick={() => onScore(side, 6)}
           disabled={disabled}
-          className={`col-span-1 ${c.bg} text-white shadow-xl ${c.shadow} font-black rounded-2xl animate-pop text-2xl h-16 disabled:opacity-40`}
+          className={`${c.banda} text-white shadow-md font-display italic font-extrabold rounded-lg animate-pop text-3xl h-16 disabled:opacity-40`}
         >
           +6
         </button>
         <button
           onClick={() => onScore(side, 1)}
           disabled={disabled}
-          className={`col-span-1 ${c.bgSoft} ${c.text} font-black rounded-2xl animate-pop text-xl h-16 disabled:opacity-40`}
+          className={`bg-panel-alterno border-2 ${c.borde} text-texto font-display italic font-extrabold rounded-lg animate-pop text-2xl h-16 disabled:opacity-40`}
         >
           +1
         </button>
         <button
           onClick={() => onScore(side, 2)}
           disabled={disabled}
-          className={`col-span-1 ${c.bgSoft} ${c.text} font-black rounded-2xl animate-pop text-xl h-16 disabled:opacity-40`}
+          className={`bg-panel-alterno border-2 ${c.borde} text-texto font-display italic font-extrabold rounded-lg animate-pop text-2xl h-16 disabled:opacity-40`}
         >
           +2
         </button>

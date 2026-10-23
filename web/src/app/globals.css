@@ -7,49 +7,61 @@
  * https://tailwindcss.com/docs/dark-mode */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Tokens "Transmisión de estadio". Fuente única: src/lib/tema.ts (el test de
+ * contraste los lee; estos valores deben coincidir). */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --team-a: #3b82f6; 
-  --team-b: #ef4444; 
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --fondo: #F4F6FA;
+  --panel: #FFFFFF;
+  --panel-alterno: #EAF0F7;
+  --texto: #0A1A33;
+  --suave: #3D4F6B;
+  --franja-1: #1E5631;
+  --franja-2: #256B3D;
+  --panuelo: #FFD23F;
+  --panuelo-texto: #8A6A00;
+  --local: #1D4ED8;
+  --visitante: #B91C1C;
+  --peligro: #B91C1C;
+  --borde: rgba(10, 26, 51, 0.14);
+
+  /* Alias heredados hasta que las pantallas migren. */
+  --background: var(--fondo);
+  --foreground: var(--texto);
 }
 
 .dark {
-  --background: #09090b; 
-  --foreground: #fafafa;
-  --team-a: #60a5fa;
-  --team-b: #f87171;
-  --glass-bg: rgba(24, 24, 27, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --fondo: #0A1A33;
+  --panel: #13284A;
+  --panel-alterno: #102240;
+  --texto: #EEF2F8;
+  --suave: #B8C4D6;
+  --franja-1: #1E5631;
+  --franja-2: #256B3D;
+  --panuelo: #FFD23F;
+  --panuelo-texto: #FFD23F;
+  --local: #3473DA;
+  --visitante: #D73D3D;
+  --peligro: #FF8A80;
+  --borde: rgba(238, 242, 248, 0.14);
 }
 
 @theme inline {
+  --color-fondo: var(--fondo);
+  --color-panel: var(--panel);
+  --color-panel-alterno: var(--panel-alterno);
+  --color-texto: var(--texto);
+  --color-suave: var(--suave);
+  --color-franja-1: var(--franja-1);
+  --color-franja-2: var(--franja-2);
+  --color-panuelo: var(--panuelo);
+  --color-panuelo-texto: var(--panuelo-texto);
+  --color-local: var(--local);
+  --color-visitante: var(--visitante);
+  --color-peligro: var(--peligro);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-team-a: var(--team-a);
-  --color-team-b: var(--team-b);
-  /* Paleta de la vista pública: el campo y el pañuelo del ícono. */
-  --color-campo: #0f5132;
-  --color-campo-claro: #15803d;
-  --color-tiza: #f8fafc;
-  --color-panuelo: #facc15;
-  --font-sans: var(--font-outfit);
-}
-
-/* Fondo del marcador público: líneas de yarda sobre el campo. */
-.campo-yardas {
-  background-color: var(--color-campo);
-  background-image:
-    linear-gradient(135deg, rgba(21, 128, 61, 0.55), rgba(5, 46, 22, 0.6)),
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent 44px,
-      rgba(255, 255, 255, 0.09) 44px,
-      rgba(255, 255, 255, 0.09) 46px
-    );
+  --font-sans: var(--font-barlow);
+  --font-display: var(--font-barlow-condensed);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -66,13 +78,45 @@ body {
   overscroll-behavior: none; 
 }
 
-/* Glassmorphism Premium Utilities */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+/* En la capa de componentes para que las utilidades de Tailwind (rounded-*,
+ * border-*, bg-*) puedan sobrescribirlas; fuera de capa ganarían siempre. */
+@layer components {
+  /* Panel sólido de la Transmisión de estadio. */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+  }
+
+  .titulo-estadio {
+    font-family: var(--font-display), sans-serif;
+    font-style: italic;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  /* Césped: franjas verticales alternas de 30 px. */
+  .franjas-campo {
+    background-color: var(--franja-1);
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--franja-1) 0,
+      var(--franja-1) 30px,
+      var(--franja-2) 30px,
+      var(--franja-2) 60px
+    );
+  }
+
+  /* Botón principal: el pañuelo amarillo con texto azul tele en ambos modos. */
+  .boton-panuelo {
+    background-color: var(--panuelo);
+    color: #0A1A33;
+    border-radius: 8px;
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
 /* Micro-animations */

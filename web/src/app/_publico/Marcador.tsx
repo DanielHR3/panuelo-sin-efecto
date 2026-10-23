@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { PartidoPublico } from "@/lib/types";
 import { fechaCorta, fechaHora } from "./formato";
 
@@ -17,7 +18,7 @@ function Equipo({
     >
       <span
         aria-hidden
-        className="w-2.5 h-2.5 rounded-full shrink-0 bg-foreground/30"
+        className="w-2.5 h-2.5 rounded-full shrink-0 bg-suave"
         style={color ? { backgroundColor: color } : undefined}
       />
       <span className="font-semibold leading-tight break-words">{nombre}</span>
@@ -25,14 +26,17 @@ function Equipo({
   );
 }
 
+/** Contenedor de filas de marcador: panel sólido, una fila por partido. */
+export const LISTA_PARTIDOS = "panel overflow-hidden";
+
 /** Fila compacta de resultado: local, marcador, visitante. */
 export function FilaMarcador({ partido }: { partido: PartidoPublico }) {
   const enJuego = partido.estado === "EN_CURSO";
   return (
-    <li className="border-b border-foreground/10 last:border-b-0">
+    <li className="border-b border-texto/10 last:border-b-0">
       <Link
         href={`/resultado/${partido.id}`}
-        className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-3 rounded-lg hover:bg-foreground/5"
+        className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-3 py-3 hover:bg-panel-alterno"
       >
         <Equipo
           nombre={partido.equipoLocal.nombre}
@@ -40,13 +44,13 @@ export function FilaMarcador({ partido }: { partido: PartidoPublico }) {
           alineacion="izq"
         />
         <div className="flex flex-col items-center leading-none">
-          <span className="font-black text-2xl tabular-nums tracking-tight">
+          <span className="font-display italic font-extrabold text-3xl tabular-nums">
             {partido.marcadorLocal}
-            <span className="opacity-40 mx-1.5">–</span>
+            <span className="text-suave mx-1.5">–</span>
             {partido.marcadorVisitante}
           </span>
           <span
-            className={`text-[11px] mt-1 font-semibold ${enJuego ? "text-campo-claro dark:text-green-400" : "opacity-60"}`}
+            className={`text-[11px] mt-1 font-bold uppercase tracking-[0.1em] ${enJuego ? "text-panuelo-texto" : "text-suave"}`}
           >
             {enJuego ? "En juego" : fechaCorta(partido.fechaHora)}
           </span>
@@ -63,13 +67,13 @@ export function FilaMarcador({ partido }: { partido: PartidoPublico }) {
 
 export function FilaProximo({ partido }: { partido: PartidoPublico }) {
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-2.5 border-b border-foreground/10 last:border-b-0 text-sm">
+    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-3 py-2.5 border-b border-texto/10 last:border-b-0 text-sm">
       <Equipo
         nombre={partido.equipoLocal.nombre}
         color={partido.equipoLocal.colorPrimario}
         alineacion="izq"
       />
-      <span className="text-xs opacity-60 whitespace-nowrap">
+      <span className="text-xs text-suave whitespace-nowrap">
         {fechaHora(partido.fechaHora)}
       </span>
       <Equipo
@@ -81,9 +85,68 @@ export function FilaProximo({ partido }: { partido: PartidoPublico }) {
   );
 }
 
+/** Zona de anotación: banda lateral del color del equipo con su nombre en vertical. */
+function ZonaAnotacion({ nombre, lado }: { nombre: string; lado: "local" | "visitante" }) {
+  return (
+    <div
+      className={`w-[30px] sm:w-11 shrink-0 flex items-center justify-center py-3 text-white ${lado === "local" ? "bg-local" : "bg-visitante"}`}
+    >
+      <span
+        title={nombre}
+        className="[writing-mode:vertical-rl] rotate-180 max-h-full overflow-hidden text-ellipsis whitespace-nowrap font-display italic font-extrabold uppercase tracking-[0.08em] text-sm sm:text-lg leading-none"
+      >
+        {nombre}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Marcador de transmisión: zonas de anotación a los lados, pasto a franjas
+ * al centro y la placa con el marcador encima.
+ */
+export function TableroEstadio({
+  local,
+  visitante,
+  marcadorLocal,
+  marcadorVisitante,
+  linea,
+  enJuego,
+}: {
+  local: string;
+  visitante: string;
+  marcadorLocal: number;
+  marcadorVisitante: number;
+  linea: ReactNode;
+  enJuego: boolean;
+}) {
+  return (
+    <div className="flex items-stretch min-h-44 sm:min-h-60 rounded-[10px] overflow-hidden border border-texto/15">
+      <ZonaAnotacion nombre={local} lado="local" />
+      <div className="franjas-campo flex-1 min-w-0 flex items-center justify-center px-3 py-6">
+        {/* En claro la placa va opaca: el dorado oscuro sobre fondo translúcido
+            no llega a 4.5:1. */}
+        <div className="bg-fondo dark:bg-fondo/88 rounded-lg px-4 sm:px-10 py-3 sm:py-4 flex flex-col items-center gap-1.5 max-w-full">
+          <p className="font-display italic font-extrabold tabular-nums leading-none text-6xl sm:text-8xl whitespace-nowrap">
+            {marcadorLocal}
+            <span className="text-suave mx-2 sm:mx-4">–</span>
+            {marcadorVisitante}
+          </p>
+          <p
+            className={`text-xs sm:text-sm font-bold uppercase tracking-[0.12em] text-center ${enJuego ? "text-panuelo-texto" : "text-suave"}`}
+          >
+            {linea}
+          </p>
+        </div>
+      </div>
+      <ZonaAnotacion nombre={visitante} lado="visitante" />
+    </div>
+  );
+}
+
 /**
  * El marcador grande del hero: el partido que importa ahora mismo (en juego
- * o el último resultado), escrito con tiza sobre el campo.
+ * o el último resultado), pintado sobre el campo.
  */
 export function MarcadorHero({
   partido,
@@ -96,34 +159,19 @@ export function MarcadorHero({
 }) {
   const enJuego = partido.estado === "EN_CURSO";
   return (
-    <div className="text-tiza flex flex-col gap-4">
-      <p className="flex items-center gap-2 text-sm font-semibold opacity-90">
-        {enJuego && (
-          <span
-            aria-hidden
-            className="w-2 h-2 rounded-full bg-panuelo animate-pulse"
-          />
-        )}
+    <div className="flex flex-col gap-3">
+      <p className="flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-[0.14em] text-suave">
+        {enJuego && <span aria-hidden className="w-2 h-2 rounded-full bg-panuelo animate-pulse shrink-0" />}
         {etiqueta} · {liga}
       </p>
-      {/* En teléfonos el marcador va arriba a todo lo ancho y los nombres
-          debajo, uno a cada lado; desde `sm` los tres van en una fila. */}
-      <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 sm:gap-8">
-        <p className="font-black tabular-nums tracking-tighter text-7xl sm:text-8xl leading-none whitespace-nowrap col-span-2 sm:col-span-1 sm:order-2 text-center">
-          {partido.marcadorLocal}
-          <span className="opacity-50 mx-2 sm:mx-4">–</span>
-          {partido.marcadorVisitante}
-        </p>
-        <p className="text-xl sm:text-3xl font-bold leading-tight min-w-0 [overflow-wrap:anywhere] sm:order-1">
-          {partido.equipoLocal.nombre}
-        </p>
-        <p className="text-xl sm:text-3xl font-bold leading-tight text-right min-w-0 [overflow-wrap:anywhere] sm:order-3">
-          {partido.equipoVisitante.nombre}
-        </p>
-      </div>
-      <p className="text-sm opacity-80">
-        {enJuego ? "Marcador en vivo" : fechaHora(partido.fechaHora)}
-      </p>
+      <TableroEstadio
+        local={partido.equipoLocal.nombre}
+        visitante={partido.equipoVisitante.nombre}
+        marcadorLocal={partido.marcadorLocal}
+        marcadorVisitante={partido.marcadorVisitante}
+        enJuego={enJuego}
+        linea={enJuego ? "Marcador en vivo" : fechaHora(partido.fechaHora)}
+      />
     </div>
   );
 }
