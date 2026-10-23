@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { JugadoresService } from './jugadores.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
@@ -53,8 +53,27 @@ describe('JugadoresService', () => {
 
   it('findOne() lanza NotFound si no existe', async () => {
     mockPrisma.jugador.findUnique.mockResolvedValueOnce(null);
-    await expect(service.findOne('x')).rejects.toBeInstanceOf(
+    await expect(service.findOne('x', user)).rejects.toBeInstanceOf(
       NotFoundException,
+    );
+  });
+
+  it('findOne() de un jugador ajeno propaga el 403', async () => {
+    mockOwnership.assertCanManageJugador.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+    await expect(service.findOne('j1', user)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(mockPrisma.jugador.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('findAllByEquipo() valida la propiedad del equipo', async () => {
+    mockPrisma.jugador.findMany.mockResolvedValueOnce([]);
+    await service.findAllByEquipo('eq-1', user);
+    expect(mockOwnership.assertCanManageEquipo).toHaveBeenCalledWith(
+      'eq-1',
+      user,
     );
   });
 

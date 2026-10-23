@@ -17,14 +17,16 @@ export class EquiposService {
     return this.prisma.equipo.create({ data: { ...dto, categoriaId } });
   }
 
-  async findAllByCategoria(categoriaId: string) {
+  async findAllByCategoria(categoriaId: string, user: AuthUser) {
+    await this.ownership.assertCanManageCategoria(categoriaId, user);
     return this.prisma.equipo.findMany({
       where: { categoriaId },
       orderBy: { nombre: 'asc' },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthUser) {
+    await this.ownership.assertCanManageEquipo(id, user);
     const equipo = await this.prisma.equipo.findUnique({
       where: { id },
       include: { jugadores: { orderBy: { numeroJersey: 'asc' } } },

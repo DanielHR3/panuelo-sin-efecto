@@ -34,9 +34,16 @@ describe('LigasController', () => {
     expect(mockLigasService.create).toHaveBeenCalledWith(dto, user);
   });
 
-  it('delega findOne() en el servicio con el id de la ruta', () => {
-    void controller.findOne('liga-123');
-    expect(mockLigasService.findOne).toHaveBeenCalledWith('liga-123');
+  it('delega findAll() con el usuario autenticado', () => {
+    const user = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' as const };
+    void controller.findAll(user);
+    expect(mockLigasService.findAll).toHaveBeenCalledWith(user);
+  });
+
+  it('delega findOne() en el servicio con el id de la ruta y el usuario', () => {
+    const user = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' as const };
+    void controller.findOne('liga-123', user);
+    expect(mockLigasService.findOne).toHaveBeenCalledWith('liga-123', user);
   });
 
   it('delega remove() en el servicio con el id y el usuario', () => {

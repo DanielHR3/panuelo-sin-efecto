@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CategoriasService } from './categorias.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
@@ -50,8 +50,27 @@ describe('CategoriasService', () => {
 
   it('findOne() lanza NotFound si no existe', async () => {
     mockPrisma.categoria.findUnique.mockResolvedValueOnce(null);
-    await expect(service.findOne('x')).rejects.toBeInstanceOf(
+    await expect(service.findOne('x', user)).rejects.toBeInstanceOf(
       NotFoundException,
+    );
+  });
+
+  it('findOne() de una categoría de otra liga propaga el 403', async () => {
+    mockOwnership.assertCanManageCategoria.mockRejectedValueOnce(
+      new ForbiddenException(),
+    );
+    await expect(service.findOne('c1', user)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(mockPrisma.categoria.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('findAllByLiga() valida la propiedad de la liga', async () => {
+    mockPrisma.categoria.findMany.mockResolvedValueOnce([]);
+    await service.findAllByLiga('liga-1', user);
+    expect(mockOwnership.assertCanManageLiga).toHaveBeenCalledWith(
+      'liga-1',
+      user,
     );
   });
 

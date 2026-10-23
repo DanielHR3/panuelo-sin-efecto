@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventosService } from './eventos.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 
 const LOCAL_ID = 'equipo-local';
@@ -51,6 +52,8 @@ const mockTx = {
   discrepanciaEvento: { createMany: jest.fn() },
 };
 
+const mockOwnership = { assertCanReadPartido: jest.fn() };
+
 const mockPrisma = {
   partido: { findUnique: jest.fn() },
   eventoPartido: {
@@ -84,6 +87,7 @@ describe('EventosService', () => {
       providers: [
         EventosService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: OwnershipService, useValue: mockOwnership },
       ],
     }).compile();
     service = module.get(EventosService);
@@ -253,6 +257,50 @@ describe('EventosService', () => {
     expect(res.duplicado).toBe(true);
     expect(res.evento).toEqual({ id: 'ev-existente' });
     expect(mockTx.eventoPartido.create).not.toHaveBeenCalled();
+  });
+
+  describe('lecturas (bitácora y marcador)', () => {
+    it('listar() valida la lectura antes de devolver la bitácora', async () => {
+      mockPrisma.eventoPartido.findMany.mockResolvedValueOnce([]);
+      await service.listar('p1', arbitroAsignado);
+      expect(mockOwnership.assertCanReadPartido).toHaveBeenCalledWith(
+        'p1',
+        arbitroAsignado,
+      );
+    });
+
+    it('listar() de un árbitro no asignado propaga el 403', async () => {
+      mockOwnership.assertCanReadPartido.mockRejectedValueOnce(
+        new ForbiddenException(),
+      );
+      await expect(service.listar('p1', arbitroAjeno)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(mockPrisma.eventoPartido.findMany).not.toHaveBeenCalled();
+    });
+
+    it('leerMarcador() valida la lectura y calcula el marcador', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce({
+        equipoLocalId: LOCAL_ID,
+        equipoVisitanteId: VISITA_ID,
+      });
+      mockPrisma.eventoPartido.findMany.mockResolvedValueOnce([]);
+      await expect(service.leerMarcador('p1', dueno)).resolves.toBeDefined();
+      expect(mockOwnership.assertCanReadPartido).toHaveBeenCalledWith(
+        'p1',
+        dueno,
+      );
+    });
+
+    it('leerMarcador() de un árbitro no asignado propaga el 403', async () => {
+      mockOwnership.assertCanReadPartido.mockRejectedValueOnce(
+        new ForbiddenException(),
+      );
+      await expect(
+        service.leerMarcador('p1', arbitroAjeno),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mockPrisma.partido.findUnique).not.toHaveBeenCalled();
+    });
   });
 
   it('getMarcador() excluye eventos descartados de la consulta', async () => {

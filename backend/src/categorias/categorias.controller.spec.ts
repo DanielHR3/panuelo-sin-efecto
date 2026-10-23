@@ -34,8 +34,13 @@ describe('CategoriasController', () => {
     expect(mockService.create).toHaveBeenCalledWith('liga-1', dto, user);
   });
 
-  it('findAllByLiga() delega con el ligaId', () => {
-    void controller.findAllByLiga('liga-1');
-    expect(mockService.findAllByLiga).toHaveBeenCalledWith('liga-1');
+  it('findAllByLiga() delega con el ligaId y el usuario', () => {
+    void controller.findAllByLiga('liga-1', user);
+    expect(mockService.findAllByLiga).toHaveBeenCalledWith('liga-1', user);
+  });
+
+  it('findOne() delega con el id y el usuario', () => {
+    void controller.findOne('c1', user);
+    expect(mockService.findOne).toHaveBeenCalledWith('c1', user);
   });
 });

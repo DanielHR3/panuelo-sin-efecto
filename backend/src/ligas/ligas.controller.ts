@@ -11,7 +11,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { LigasService } from './ligas.service';
 import { CreateLigaDto } from './dto/create-liga.dto';
 import { UpdateLigaDto } from './dto/update-liga.dto';
-import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -31,18 +30,23 @@ export class LigasController {
     return this.ligasService.create(createLigaDto, user);
   }
 
-  @Public()
   @Get()
-  @ApiOperation({ summary: 'Lista todas las ligas con sus categorías' })
-  findAll() {
-    return this.ligasService.findAll();
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Lista las ligas con sus categorías: todas para SUPERADMIN; para el resto solo las propias (nunca las RAPIDA)',
+  })
+  findAll(@CurrentUser() user: AuthUser) {
+    return this.ligasService.findAll(user);
   }
 
-  @Public()
   @Get(':id')
-  @ApiOperation({ summary: 'Detalle de una liga' })
-  findOne(@Param('id') id: string) {
-    return this.ligasService.findOne(id);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Detalle de una liga (dueño o SUPERADMIN; 403 si es ajena)',
+  })
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.ligasService.findOne(id, user);
   }
 
   @Patch(':id')

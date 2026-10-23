@@ -11,7 +11,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JugadoresService } from './jugadores.service';
 import { CreateJugadorDto } from './dto/create-jugador.dto';
 import { UpdateJugadorDto } from './dto/update-jugador.dto';
-import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import {
   CurrentUser,
@@ -35,18 +34,23 @@ export class JugadoresController {
     return this.jugadoresService.create(equipoId, dto, user);
   }
 
-  @Public()
   @Get('equipos/:equipoId/jugadores')
-  @ApiOperation({ summary: 'Lista el roster de un equipo' })
-  findAllByEquipo(@Param('equipoId') equipoId: string) {
-    return this.jugadoresService.findAllByEquipo(equipoId);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Lista el roster de un equipo (dueño o SUPERADMIN)',
+  })
+  findAllByEquipo(
+    @Param('equipoId') equipoId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.jugadoresService.findAllByEquipo(equipoId, user);
   }
 
-  @Public()
   @Get('jugadores/:id')
-  @ApiOperation({ summary: 'Detalle de un jugador' })
-  findOne(@Param('id') id: string) {
-    return this.jugadoresService.findOne(id);
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Detalle de un jugador (dueño o SUPERADMIN)' })
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.jugadoresService.findOne(id, user);
   }
 
   @Patch('jugadores/:id')

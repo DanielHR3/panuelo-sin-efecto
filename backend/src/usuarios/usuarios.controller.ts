@@ -26,10 +26,11 @@ export class UsuariosController {
   @Roles('SUPERADMIN', 'LIGA_ADMIN')
   @ApiOperation({
     summary:
-      'Lista usuarios, opcionalmente filtrados por rol (p.ej. para elegir árbitros a asignar)',
+      'Lista usuarios. SUPERADMIN: todos (filtrables por rol), con email. ' +
+      'LIGA_ADMIN: solo árbitros con cuenta (sin invitados) y sin email, para asignarlos.',
   })
-  findAll(@Query() query: FindUsuariosQueryDto) {
-    return this.usuariosService.findAll(query.rol);
+  findAll(@CurrentUser() user: AuthUser, @Query() query: FindUsuariosQueryDto) {
+    return this.usuariosService.findAll(user, query.rol);
   }
 
   @Get('me')

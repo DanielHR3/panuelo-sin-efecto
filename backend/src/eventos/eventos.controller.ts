@@ -2,7 +2,6 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { EventosService } from './eventos.service';
 import { RegistrarEventoDto } from './dto/registrar-evento.dto';
-import { Public } from '../common/decorators/public.decorator';
 import {
   CurrentUser,
   type AuthUser,
@@ -28,17 +27,28 @@ export class EventosController {
     return this.eventosService.registrar(partidoId, dto, user);
   }
 
-  @Public()
   @Get('eventos')
-  @ApiOperation({ summary: 'Bitácora completa de eventos de un partido' })
-  listar(@Param('partidoId') partidoId: string) {
-    return this.eventosService.listar(partidoId);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Bitácora completa de eventos de un partido. ' +
+      'Solo el árbitro asignado, el dueño de la liga o un SUPERADMIN.',
+  })
+  listar(@Param('partidoId') partidoId: string, @CurrentUser() user: AuthUser) {
+    return this.eventosService.listar(partidoId, user);
   }
 
-  @Public()
   @Get('marcador')
-  @ApiOperation({ summary: 'Marcador derivado de la bitácora de eventos' })
-  marcador(@Param('partidoId') partidoId: string) {
-    return this.eventosService.getMarcador(partidoId);
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Marcador derivado de la bitácora de eventos. ' +
+      'Solo el árbitro asignado, el dueño de la liga o un SUPERADMIN.',
+  })
+  marcador(
+    @Param('partidoId') partidoId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.eventosService.leerMarcador(partidoId, user);
   }
 }
