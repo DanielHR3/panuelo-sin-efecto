@@ -19,6 +19,8 @@ export class DiscrepanciasController {
   @ApiOperation({
     summary:
       'Lista las discrepancias detectadas entre árbitros en el partido (HU-2.6)',
+    description:
+      'eventoA/eventoB incluyen `anulado: boolean` — true si ese evento ya no cuenta para el marcador por un ANULAR_EVENTO o UNDO posterior (calculado al leer).',
   })
   listar(@Param('partidoId') partidoId: string, @CurrentUser() user: AuthUser) {
     return this.discrepanciasService.listar(partidoId, user);
@@ -28,6 +30,8 @@ export class DiscrepanciasController {
   @ApiOperation({
     summary:
       'Resuelve una discrepancia: descarta uno de los dos eventos o mantiene ambos. Solo LIGA_ADMIN dueño o SUPERADMIN.',
+    description:
+      '400 si se pide descartar un evento cuya contraparte ya fue anulada (la jugada quedaría sin registrar); MANTENER_AMBOS siempre se permite.',
   })
   resolver(
     @Param('partidoId') partidoId: string,

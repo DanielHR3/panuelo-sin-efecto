@@ -20,6 +20,7 @@ export interface Categoria {
 export interface Liga {
   id: string;
   nombre: string;
+  tipo: "LIGA" | "RAPIDA";
   /** HU-1.1: URL pública del logo, o null si la liga no tiene. */
   logoUrl: string | null;
   /** HU-1.1: la PWA exige elegir MVP al finalizar cada partido. */
@@ -31,6 +32,12 @@ export interface Liga {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Columnas de la liga que expone GET /partidos/:id (ruta pública). */
+export type LigaDePartido = Pick<
+  Liga,
+  "id" | "nombre" | "logoUrl" | "tipo" | "registraMvp" | "registraIntercepciones"
+>;
 
 export interface CategoriaConEquipos extends Categoria {
   equipos: Equipo[];
@@ -82,7 +89,7 @@ export interface Partido {
   equipoLocal?: Equipo;
   equipoVisitante?: Equipo;
   asignaciones?: AsignacionArbitral[];
-  categoria?: Categoria & { liga: Liga };
+  categoria?: Categoria & { liga: LigaDePartido };
   mvpJugadorId?: string | null;
   mvpJugador?: Jugador | null;
 }
@@ -111,6 +118,8 @@ export const TIPOS_EVENTO = [
   "INTERCEPCION",
   "SACK",
   "UNDO_LAST_ACTION",
+  "REABRIR_PARTIDO",
+  "ANULAR_EVENTO",
 ] as const;
 export type TipoEvento = (typeof TIPOS_EVENTO)[number];
 
@@ -123,6 +132,9 @@ export interface GameEvent {
   equipoId: string | null;
   jugadorId: string | null;
   arbitroId: string;
+  eventoAnuladoId: string | null;
+  /** Descartado por el admin al resolver una discrepancia: no cuenta para el marcador. */
+  descartado: boolean;
 }
 
 export interface Marcador {
@@ -138,6 +150,8 @@ export interface EventoDiscrepancia {
   arbitroId: string;
   timestamp: string;
   descartado: boolean;
+  /** Ya no cuenta para el marcador por un ANULAR_EVENTO (o UNDO) posterior; calculado al leer. */
+  anulado: boolean;
 }
 
 export type AccionResolucion = "DESCARTAR_A" | "DESCARTAR_B" | "MANTENER_AMBOS";

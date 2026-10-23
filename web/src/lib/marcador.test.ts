@@ -4,8 +4,14 @@ import { calcularMarcador, type EventoParaMarcador } from "./marcador";
 const LOCAL = "local";
 const VISITA = "visita";
 
-function ev(tipoEvento: string, equipoId: string | null = LOCAL): EventoParaMarcador {
-  return { tipoEvento, equipoId };
+let secuencia = 0;
+function ev(
+  tipoEvento: string,
+  equipoId: string | null = LOCAL,
+  id: string = `auto-${++secuencia}`,
+  eventoAnuladoId: string | null = null,
+): EventoParaMarcador {
+  return { id, tipoEvento, equipoId, eventoAnuladoId };
 }
 
 describe("calcularMarcador (cálculo optimista offline)", () => {
@@ -71,4 +77,78 @@ describe("calcularMarcador (cálculo optimista offline)", () => {
     const eventos = [ev("TD", LOCAL), ev("UNDO_LAST_ACTION", null), ev("TD", LOCAL)];
     expect(calcularMarcador(eventos, LOCAL, VISITA)).toEqual({ local: 6, visitante: 0 });
   });
+});
+
+describe("ANULAR_EVENTO y REABRIR_PARTIDO", () => {
+  it("anula un TD que no es el último", () => {
+    const m = calcularMarcador(
+      [ev("TD", LOCAL, "a"), ev("PAT1", LOCAL, "b"), ev("ANULAR_EVENTO", null, "x", "a")],
+      LOCAL,
+      VISITA,
+    );
+    expect(m).toEqual({ local: 1, visitante: 0 });
+  });
+
+  it("UNDO deshace una anulación", () => {
+    const m = calcularMarcador(
+      [ev("TD", LOCAL, "a"), ev("ANULAR_EVENTO", null, "x", "a"), ev("UNDO_LAST_ACTION")],
+      LOCAL,
+      VISITA,
+    );
+    expect(m).toEqual({ local: 6, visitante: 0 });
+  });
+
+  it("UNDO tras REABRIR es no-op", () => {
+    const m = calcularMarcador(
+      [
+        ev("TD", LOCAL, "a"),
+        ev("FIN_MITAD", null, "f1"),
+        ev("FIN_MITAD", null, "f2"),
+        ev("REABRIR_PARTIDO", null, "r"),
+        ev("UNDO_LAST_ACTION"),
+      ],
+      LOCAL,
+      VISITA,
+    );
+    expect(m).toEqual({ local: 6, visitante: 0 });
+  });
+
+  it("UNDO después de un TD posterior a la reapertura cancela ese TD", () => {
+    const m = calcularMarcador(
+      [
+        ev("TD", LOCAL, "a"),
+        ev("FIN_MITAD", null, "f1"),
+        ev("FIN_MITAD", null, "f2"),
+        ev("REABRIR_PARTIDO", null, "r"),
+        ev("TD", VISITA, "c"),
+        ev("UNDO_LAST_ACTION"),
+      ],
+      LOCAL,
+      VISITA,
+    );
+    expect(m).toEqual({ local: 6, visitante: 0 });
+  });
+
+  it("ANULAR_EVENTO que apunta a un id inexistente es no-op", () => {
+    const m = calcularMarcador(
+      [ev("TD", LOCAL, "a"), ev("ANULAR_EVENTO", null, "x", "no-existe")],
+      LOCAL,
+      VISITA,
+    );
+    expect(m).toEqual({ local: 6, visitante: 0 });
+  });
+
+  it.each(["REABRIR_PARTIDO", "FIN_MITAD", "ANULAR_EVENTO"])(
+    "ANULAR_EVENTO que apunta a %s es no-op",
+    (tipo) => {
+      const eventos = [
+        ev("TD", LOCAL, "a"),
+        ev(tipo, null, "obj", tipo === "ANULAR_EVENTO" ? "a" : null),
+        ev("ANULAR_EVENTO", null, "x", "obj"),
+      ];
+      expect(calcularMarcador(eventos, LOCAL, VISITA)).toEqual(
+        calcularMarcador(eventos.slice(0, 2), LOCAL, VISITA),
+      );
+    },
+  );
 });

@@ -7,6 +7,7 @@ export interface EventoPendiente {
   tipoEvento: TipoEvento;
   equipoId?: string;
   jugadorId?: string;
+  eventoAnuladoId?: string;
   createdAt: number;
 }
 

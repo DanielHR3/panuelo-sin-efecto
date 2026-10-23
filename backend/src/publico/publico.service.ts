@@ -35,6 +35,7 @@ const eventoSelect = {
   tipoEvento: true,
   jugadorId: true,
   equipoId: true,
+  eventoAnuladoId: true,
 } as const;
 
 const ORDEN_EVENTOS = [

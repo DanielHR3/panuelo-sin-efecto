@@ -25,6 +25,14 @@ export class RegistrarEventoDto {
   @IsUUID('4')
   equipoId?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Evento que se anula. Obligatorio (y solo válido) con ANULAR_EVENTO, al corregir un partido finalizado.',
+  })
+  @IsOptional()
+  @IsUUID('4')
+  eventoAnuladoId?: string;
+
   @ApiPropertyOptional({ description: 'Jugador implicado (opcional)' })
   @IsOptional()
   @IsUUID('4')

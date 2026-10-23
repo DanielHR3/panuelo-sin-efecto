@@ -14,6 +14,8 @@ const TIPO_LABEL: Partial<Record<TipoEvento, string>> = {
   INICIO_MITAD: "Inicio de mitad",
   FIN_MITAD: "Fin de mitad",
   UNDO_LAST_ACTION: "Deshacer",
+  REABRIR_PARTIDO: "Partido reabierto",
+  ANULAR_EVENTO: "Evento anulado",
 };
 
 /** Descripción legible de un evento para el aviso "📝 último evento". */

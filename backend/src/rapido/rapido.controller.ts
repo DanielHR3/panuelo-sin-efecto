@@ -1,10 +1,13 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Param, Post, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { Public } from '../common/decorators/public.decorator';
-import { AuthUser } from '../common/decorators/current-user.decorator';
+import {
+  type AuthUser,
+  CurrentUser,
+} from '../common/decorators/current-user.decorator';
 import { CrearPartidoRapidoDto } from './dto/crear-partido-rapido.dto';
 import { RapidoService } from './rapido.service';
 
@@ -27,6 +30,16 @@ export class RapidoController {
   })
   async crear(@Body() dto: CrearPartidoRapidoDto, @Req() req: Request) {
     return this.rapidoService.crear(dto, await this.usuarioOpcional(req));
+  }
+
+  @Post('partidos/:id/intercambiar-equipos')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Corrige un partido rápido con los equipos al revés: intercambia nombre y color de los dos equipos sin tocar los eventos.',
+  })
+  intercambiarEquipos(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.rapidoService.intercambiarEquipos(id, user);
   }
 
   /**

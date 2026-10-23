@@ -21,6 +21,16 @@ const arbitroPublico = {
   email: true,
 } satisfies Prisma.UsuarioSelect;
 
+/** Columnas de la liga expuestas en el detalle público de un partido. */
+const ligaPublica = {
+  id: true,
+  nombre: true,
+  logoUrl: true,
+  tipo: true,
+  registraMvp: true,
+  registraIntercepciones: true,
+} satisfies Prisma.LigaSelect;
+
 @Injectable()
 export class PartidosService {
   constructor(
@@ -90,6 +100,10 @@ export class PartidosService {
         },
         asignaciones: { include: { arbitro: { select: arbitroPublico } } },
         mvpJugador: true,
+        // El marcador lee las reglas de la liga (registraMvp, tipo RAPIDA…).
+        // Ruta @Public: solo las columnas que necesita el cliente, nunca
+        // propietarioId ni marcas internas de la liga.
+        categoria: { include: { liga: { select: ligaPublica } } },
       },
     });
     if (!partido) throw new NotFoundException(`Partido ${id} no encontrado`);

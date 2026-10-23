@@ -107,6 +107,7 @@ export interface EventoPublico {
   tipoEvento: string;
   jugadorId: string | null;
   equipoId: string | null;
+  eventoAnuladoId?: string | null;
 }
 
 /**

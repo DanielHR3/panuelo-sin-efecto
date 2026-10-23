@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -129,5 +134,65 @@ export class RapidoService {
       partidoId,
       usuario: payload,
     };
+  }
+
+  /**
+   * Atajo "los equipos estaban al revés": intercambia nombre y color de los
+   * dos equipos del partido rápido. Los eventos no se tocan (siguen apuntando
+   * a la misma fila de Equipo), así que el marcador queda corregido de golpe.
+   */
+  async intercambiarEquipos(partidoId: string, usuario: AuthUser) {
+    // Lectura y escritura bajo el mismo bloqueo de fila del partido (mismo
+    // patrón que eventos.service.registrar): dos intercambios concurrentes
+    // leerían los mismos nombres y el segundo desharía al primero a medias.
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT "id" FROM "Partido" WHERE "id" = ${partidoId} FOR UPDATE`;
+      const partido = await tx.partido.findUnique({
+        where: { id: partidoId },
+        select: {
+          categoria: {
+            select: { liga: { select: { tipo: true, propietarioId: true } } },
+          },
+          asignaciones: { select: { arbitroId: true } },
+          equipoLocal: {
+            select: { id: true, nombre: true, colorPrimario: true },
+          },
+          equipoVisitante: {
+            select: { id: true, nombre: true, colorPrimario: true },
+          },
+        },
+      });
+      if (!partido) throw new NotFoundException('Partido no encontrado');
+
+      const puede =
+        usuario.rol === 'SUPERADMIN' ||
+        partido.categoria.liga.propietarioId === usuario.sub ||
+        partido.asignaciones.some((a) => a.arbitroId === usuario.sub);
+      if (!puede) {
+        throw new ForbiddenException(
+          'Solo el árbitro asignado o el dueño de la liga pueden corregir este partido',
+        );
+      }
+      if (partido.categoria.liga.tipo !== 'RAPIDA') {
+        throw new BadRequestException('Solo disponible en partidos rápidos');
+      }
+
+      const { equipoLocal: local, equipoVisitante: visitante } = partido;
+      await tx.equipo.update({
+        where: { id: local.id },
+        data: {
+          nombre: visitante.nombre,
+          colorPrimario: visitante.colorPrimario,
+        },
+      });
+      await tx.equipo.update({
+        where: { id: visitante.id },
+        data: { nombre: local.nombre, colorPrimario: local.colorPrimario },
+      });
+      return {
+        equipoLocal: { id: local.id, nombre: visitante.nombre },
+        equipoVisitante: { id: visitante.id, nombre: local.nombre },
+      };
+    });
   }
 }

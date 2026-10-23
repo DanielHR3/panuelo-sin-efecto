@@ -13,8 +13,12 @@ import {
   filtrarEventosVigentes,
   type Marcador,
 } from './marcador';
-import { puntosDe } from './evento.constants';
+import { esAnulable, puntosDe } from './evento.constants';
 import { detectarDiscrepancias } from './discrepancias';
+
+const PLAZO_CORRECCION_MS = 48 * 3600_000;
+/** Tolerancia de deriva de reloj del dispositivo para `dto.timestamp`. */
+const MAX_TIMESTAMP_FUTURO_MS = 5 * 60_000;
 
 @Injectable()
 export class EventosService {
@@ -79,6 +83,25 @@ export class EventosService {
       );
     }
 
+    if (dto.tipoEvento === 'ANULAR_EVENTO' && !dto.eventoAnuladoId) {
+      throw new BadRequestException(
+        'ANULAR_EVENTO requiere eventoAnuladoId (el evento que se anula)',
+      );
+    }
+    if (dto.eventoAnuladoId && dto.tipoEvento !== 'ANULAR_EVENTO') {
+      throw new BadRequestException(
+        'eventoAnuladoId solo aplica a ANULAR_EVENTO',
+      );
+    }
+    if (
+      dto.timestamp &&
+      new Date(dto.timestamp).getTime() > Date.now() + MAX_TIMESTAMP_FUTURO_MS
+    ) {
+      throw new BadRequestException(
+        'El timestamp del evento no puede estar en el futuro',
+      );
+    }
+
     try {
       return await this.prisma.$transaction(async (tx) => {
         // Serialización por partido (HU-2.6, finding 2). En PostgreSQL con
@@ -90,6 +113,18 @@ export class EventosService {
         // genuinamente tardío.
         await tx.$executeRaw`SELECT "id" FROM "Partido" WHERE "id" = ${partidoId} FOR UPDATE`;
 
+        // Un timestamp enviado por el cliente no puede caer antes de la
+        // última reapertura: si no, un UNDO/TD retrofechado se colaría en
+        // el partido original (por debajo del tope de REABRIR en la pila)
+        // o alargaría el plazo de 48 h. Se lee bajo el bloqueo.
+        if (dto.timestamp) {
+          await this.assertTimestampTrasReapertura(
+            tx,
+            partidoId,
+            new Date(dto.timestamp),
+          );
+        }
+
         const estadoActual = await tx.partido.findUniqueOrThrow({
           where: { id: partidoId },
           select: { estado: true },
@@ -100,6 +135,15 @@ export class EventosService {
           estadoActual.estado,
           dto,
         );
+        if (dto.tipoEvento === 'REABRIR_PARTIDO') {
+          await this.assertPuedeReabrir(tx, partidoId, partido, arbitro);
+        } else if (dto.tipoEvento === 'ANULAR_EVENTO') {
+          await this.assertPuedeAnular(
+            tx,
+            partidoId,
+            dto.eventoAnuladoId as string,
+          );
+        }
 
         const evento = await tx.eventoPartido.create({
           data: {
@@ -107,6 +151,7 @@ export class EventosService {
             tipoEvento: dto.tipoEvento,
             clientEventId: dto.clientEventId ?? null,
             equipoId: dto.equipoId ?? null,
+            eventoAnuladoId: dto.eventoAnuladoId ?? null,
             jugadorId: dto.jugadorId ?? null,
             arbitroId: arbitro.sub,
             ...(dto.timestamp ? { timestamp: new Date(dto.timestamp) } : {}),
@@ -122,6 +167,7 @@ export class EventosService {
             equipoId: true,
             arbitroId: true,
             timestamp: true,
+            eventoAnuladoId: true,
           },
         });
         const marcador = calcularMarcador(
@@ -218,7 +264,12 @@ export class EventosService {
     const eventos = await this.prisma.eventoPartido.findMany({
       where: { partidoId, descartado: false },
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
-      select: { tipoEvento: true, equipoId: true },
+      select: {
+        id: true,
+        tipoEvento: true,
+        equipoId: true,
+        eventoAnuladoId: true,
+      },
     });
     return calcularMarcador(
       eventos,
@@ -278,6 +329,12 @@ export class EventosService {
     estadoActual: string,
     dto: RegistrarEventoDto,
   ): Promise<string> {
+    if (dto.tipoEvento === 'REABRIR_PARTIDO') {
+      if (estadoActual !== 'FINALIZADO') {
+        throw new BadRequestException('El partido no está finalizado');
+      }
+      return 'EN_CURSO';
+    }
     if (estadoActual === 'FINALIZADO') {
       throw new BadRequestException(
         'El partido ya finalizó; no admite más eventos',
@@ -298,5 +355,104 @@ export class EventosService {
       if (finesPrevios >= 1) return 'FINALIZADO';
     }
     return estadoActual;
+  }
+
+  /**
+   * Reabrir un partido finalizado: el dueño de la liga y el superadmin
+   * siempre pueden; el árbitro asignado solo dentro de las 48 h siguientes
+   * al último FIN_MITAD.
+   */
+  private async assertPuedeReabrir(
+    tx: Prisma.TransactionClient,
+    partidoId: string,
+    partido: { categoria: { liga: { propietarioId: string } } },
+    usuario: AuthUser,
+  ): Promise<void> {
+    const esDuenoOSuperadmin =
+      usuario.rol === 'SUPERADMIN' ||
+      partido.categoria.liga.propietarioId === usuario.sub;
+    if (esDuenoOSuperadmin) return;
+
+    const ultimoFin = await tx.eventoPartido.findFirst({
+      where: { partidoId, tipoEvento: 'FIN_MITAD', descartado: false },
+      orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+      select: { timestamp: true },
+    });
+    if (
+      ultimoFin &&
+      ultimoFin.timestamp.getTime() < Date.now() - PLAZO_CORRECCION_MS
+    ) {
+      throw new ForbiddenException(
+        'El plazo para corregir este partido (48 h) ya terminó; pídeselo al organizador de la liga',
+      );
+    }
+  }
+
+  private async assertTimestampTrasReapertura(
+    tx: Prisma.TransactionClient,
+    partidoId: string,
+    timestamp: Date,
+  ): Promise<void> {
+    const ultimaReapertura = await tx.eventoPartido.findFirst({
+      where: { partidoId, tipoEvento: 'REABRIR_PARTIDO' },
+      orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+      select: { timestamp: true },
+    });
+    if (
+      ultimaReapertura &&
+      timestamp.getTime() < ultimaReapertura.timestamp.getTime()
+    ) {
+      throw new BadRequestException(
+        'El timestamp del evento no puede ser anterior a la reapertura del partido',
+      );
+    }
+  }
+
+  /**
+   * ANULAR_EVENTO solo vale tras reabrir el partido, contra un evento
+   * anulable de este mismo partido que siga vigente.
+   */
+  private async assertPuedeAnular(
+    tx: Prisma.TransactionClient,
+    partidoId: string,
+    eventoAnuladoId: string,
+  ): Promise<void> {
+    // Se leen también los descartados solo para dar un mensaje claro si el
+    // objetivo es uno de ellos; la vigencia se calcula, como en el
+    // marcador, únicamente sobre los no descartados.
+    const todos = await tx.eventoPartido.findMany({
+      where: { partidoId },
+      orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        tipoEvento: true,
+        eventoAnuladoId: true,
+        descartado: true,
+      },
+    });
+    const eventos = todos.filter((e) => !e.descartado);
+    if (!eventos.some((e) => e.tipoEvento === 'REABRIR_PARTIDO')) {
+      throw new BadRequestException(
+        'Solo se pueden anular eventos al corregir un partido finalizado',
+      );
+    }
+    const objetivo = eventos.find((e) => e.id === eventoAnuladoId);
+    if (!objetivo && todos.some((e) => e.id === eventoAnuladoId)) {
+      throw new BadRequestException(
+        'Ese evento fue descartado al resolver una discrepancia',
+      );
+    }
+    if (!objetivo) {
+      throw new BadRequestException(
+        'El evento a anular no pertenece a este partido',
+      );
+    }
+    if (!esAnulable(objetivo.tipoEvento)) {
+      throw new BadRequestException('Ese evento no se puede anular');
+    }
+    const vigentes = filtrarEventosVigentes(eventos);
+    if (!vigentes.some((e) => e.id === eventoAnuladoId)) {
+      throw new BadRequestException('Ese evento ya está anulado');
+    }
   }
 }
