@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../common/hashing';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CrearPartidoRapidoDto } from './dto/crear-partido-rapido.dto';
+import { IntercambiarEquiposDto } from './dto/intercambiar-equipos.dto';
 
 const NOMBRE_INVITADO = 'Árbitro invitado';
 const CATEGORIA_RAPIDA = 'Partidos rápidos';
@@ -141,7 +142,11 @@ export class RapidoService {
    * dos equipos del partido rápido. Los eventos no se tocan (siguen apuntando
    * a la misma fila de Equipo), así que el marcador queda corregido de golpe.
    */
-  async intercambiarEquipos(partidoId: string, usuario: AuthUser) {
+  async intercambiarEquipos(
+    partidoId: string,
+    usuario: AuthUser,
+    dto: IntercambiarEquiposDto = {},
+  ) {
     // Lectura y escritura bajo el mismo bloqueo de fila del partido (mismo
     // patrón que eventos.service.registrar): dos intercambios concurrentes
     // leerían los mismos nombres y el segundo desharía al primero a medias.
@@ -178,6 +183,21 @@ export class RapidoService {
       }
 
       const { equipoLocal: local, equipoVisitante: visitante } = partido;
+
+      // Idempotencia: un reintento (p. ej. tras un arranque en frío de >45 s)
+      // llega con el local que el cliente veía antes del primer intento. Si
+      // ya no coincide, el intercambio ya se aplicó: devolver el estado actual.
+      if (
+        dto.localEsperado !== undefined &&
+        dto.localEsperado !== local.nombre
+      ) {
+        return {
+          equipoLocal: { id: local.id, nombre: local.nombre },
+          equipoVisitante: { id: visitante.id, nombre: visitante.nombre },
+          aplicado: false,
+        };
+      }
+
       await tx.equipo.update({
         where: { id: local.id },
         data: {
@@ -192,6 +212,7 @@ export class RapidoService {
       return {
         equipoLocal: { id: local.id, nombre: visitante.nombre },
         equipoVisitante: { id: visitante.id, nombre: local.nombre },
+        aplicado: true,
       };
     });
   }
