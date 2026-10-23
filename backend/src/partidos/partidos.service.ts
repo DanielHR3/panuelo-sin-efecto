@@ -178,11 +178,18 @@ export class PartidosService {
 
     const arbitro = await this.prisma.usuario.findUnique({
       where: { id: dto.arbitroId },
-      select: { rol: true },
+      select: { rol: true, esInvitado: true },
     });
     if (!arbitro || arbitro.rol !== 'ARBITRO') {
       throw new BadRequestException(
         `El usuario ${dto.arbitroId} no existe o no tiene rol ARBITRO`,
+      );
+    }
+    // HU-2.7: los invitados solo existen para sus partidos rápidos; no se
+    // pueden asignar a partidos de una liga.
+    if (arbitro.esInvitado) {
+      throw new BadRequestException(
+        'No se puede asignar a un árbitro invitado',
       );
     }
 

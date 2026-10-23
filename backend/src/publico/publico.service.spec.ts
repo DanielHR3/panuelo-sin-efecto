@@ -29,8 +29,8 @@ function partido(
 
 const mockPrisma = {
   liga: { findMany: jest.fn() },
-  categoria: { findUnique: jest.fn() },
-  jugador: { findUnique: jest.fn(), findMany: jest.fn() },
+  categoria: { findFirst: jest.fn() },
+  jugador: { findFirst: jest.fn(), findMany: jest.fn() },
   eventoPartido: { findMany: jest.fn() },
   partido: { count: jest.fn(), findMany: jest.fn() },
 };
@@ -146,16 +146,43 @@ describe('PublicoService', () => {
     });
   });
 
+  describe('categoria', () => {
+    it('solo busca categorías de ligas normales: una RAPIDA da 404', async () => {
+      mockPrisma.categoria.findFirst.mockResolvedValueOnce(null);
+      await expect(service.categoria('cat-rapida')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      const [arg] = mockPrisma.categoria.findFirst.mock.calls[0] as [
+        { where: unknown },
+      ];
+      expect(arg.where).toEqual({ id: 'cat-rapida', liga: { tipo: 'LIGA' } });
+    });
+  });
+
   describe('jugador', () => {
+    it('solo busca jugadores de ligas normales: uno de partido rápido da 404', async () => {
+      mockPrisma.jugador.findFirst.mockResolvedValueOnce(null);
+      await expect(service.jugador('j-rapido')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      const [arg] = mockPrisma.jugador.findFirst.mock.calls[0] as [
+        { where: unknown },
+      ];
+      expect(arg.where).toEqual({
+        id: 'j-rapido',
+        equipo: { categoria: { liga: { tipo: 'LIGA' } } },
+      });
+    });
+
     it('lanza NotFound si no existe', async () => {
-      mockPrisma.jugador.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.jugador.findFirst.mockResolvedValueOnce(null);
       await expect(service.jugador('nadie')).rejects.toBeInstanceOf(
         NotFoundException,
       );
     });
 
     it('devuelve el perfil con estadísticas, MVPs y línea por partido', async () => {
-      mockPrisma.jugador.findUnique.mockResolvedValueOnce({
+      mockPrisma.jugador.findFirst.mockResolvedValueOnce({
         id: 'j1',
         nombre: 'Ana',
         numeroJersey: '7',
@@ -341,5 +368,44 @@ describe('PublicoService.partido (resumen compartible, HU-2.7)', () => {
         numeroJersey: null,
       },
     ]);
+  });
+  function partidoConLiga(tipo: 'LIGA' | 'RAPIDA') {
+    return {
+      ...partido('p1', 'FINALIZADO', 6, 0, '2026-09-20T18:00:00Z'),
+      categoria: {
+        id: 'c1',
+        nombre: tipo === 'RAPIDA' ? 'Partidos rápidos' : 'Varonil',
+        liga: { id: 'l1', nombre: 'Liga', logoUrl: null, tipo },
+      },
+      mvpJugador: null,
+      asignaciones: [],
+    };
+  }
+
+  it('partido RAPIDA: no expone ids de la categoría ni de la liga contenedora', async () => {
+    mockPrisma2.partido.findUnique.mockResolvedValueOnce(
+      partidoConLiga('RAPIDA'),
+    );
+    mockPrisma2.eventoPartido.findMany.mockResolvedValueOnce([]);
+    const r = await service.partido('p1');
+    expect(r.categoria).toEqual({ nombre: 'Partidos rápidos' });
+    expect(r.liga).toEqual({ nombre: 'Liga', logoUrl: null, esRapida: true });
+    expect(JSON.stringify(r)).not.toContain('"c1"');
+    expect(JSON.stringify(r)).not.toContain('"l1"');
+  });
+
+  it('partido de liga normal: conserva los ids para enlazar la categoría', async () => {
+    mockPrisma2.partido.findUnique.mockResolvedValueOnce(
+      partidoConLiga('LIGA'),
+    );
+    mockPrisma2.eventoPartido.findMany.mockResolvedValueOnce([]);
+    const r = await service.partido('p1');
+    expect(r.categoria).toEqual({ id: 'c1', nombre: 'Varonil' });
+    expect(r.liga).toEqual({
+      id: 'l1',
+      nombre: 'Liga',
+      logoUrl: null,
+      esRapida: false,
+    });
   });
 });

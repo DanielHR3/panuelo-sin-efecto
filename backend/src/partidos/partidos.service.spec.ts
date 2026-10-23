@@ -132,8 +132,28 @@ describe('PartidosService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('rechaza asignar a un árbitro invitado de partido rápido', async () => {
+      mockPrisma.usuario.findUnique.mockResolvedValueOnce({
+        rol: 'ARBITRO',
+        esInvitado: true,
+      });
+      await expect(
+        service.asignarArbitro(
+          'p1',
+          { arbitroId: 'guest-1', rolEnCampo: 'Referee' },
+          user,
+        ),
+      ).rejects.toThrow(
+        new BadRequestException('No se puede asignar a un árbitro invitado'),
+      );
+      expect(mockPrisma.asignacionArbitral.upsert).not.toHaveBeenCalled();
+    });
+
     it('hace upsert de la asignación para un ARBITRO válido', async () => {
-      mockPrisma.usuario.findUnique.mockResolvedValueOnce({ rol: 'ARBITRO' });
+      mockPrisma.usuario.findUnique.mockResolvedValueOnce({
+        rol: 'ARBITRO',
+        esInvitado: false,
+      });
       mockPrisma.asignacionArbitral.upsert.mockResolvedValueOnce({});
       await service.asignarArbitro(
         'p1',
