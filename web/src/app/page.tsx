@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EtiquetaDemo } from "./_publico/EtiquetaDemo";
 import { fetchPublico } from "@/lib/publico";
 import type { CategoriaPublica, LigaPublica, PartidoPublico, ResumenPublico } from "@/lib/types";
 import { Despertando } from "./_publico/Despertando";
@@ -115,7 +116,10 @@ function SeccionLiga({ liga }: { liga: LigaPublica }) {
           // eslint-disable-next-line @next/next/no-img-element -- URL externa configurada por la liga
           <img src={liga.logoUrl} alt="" className="w-12 h-12 rounded-lg object-cover bg-panel" />
         )}
-        <h2 className="titulo-estadio text-3xl sm:text-4xl leading-none">{liga.nombre}</h2>
+        <div className="flex flex-col gap-1">
+          <h2 className="titulo-estadio text-3xl sm:text-4xl leading-none">{liga.nombre}</h2>
+          {liga.esDemo && <EtiquetaDemo />}
+        </div>
       </header>
       {liga.categorias.length === 0 ? (
         <p className="text-sm text-suave">Esta liga todavía no tiene categorías.</p>
