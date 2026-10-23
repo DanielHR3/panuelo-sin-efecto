@@ -1,5 +1,5 @@
 import { Body, Controller, Param, Post, Req } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
@@ -9,6 +9,7 @@ import {
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
 import { CrearPartidoRapidoDto } from './dto/crear-partido-rapido.dto';
+import { IntercambiarEquiposDto } from './dto/intercambiar-equipos.dto';
 import { RapidoService } from './rapido.service';
 
 @ApiTags('rapido')
@@ -36,10 +37,15 @@ export class RapidoController {
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'Corrige un partido rápido con los equipos al revés: intercambia nombre y color de los dos equipos sin tocar los eventos.',
+      'Corrige un partido rápido con los equipos al revés: intercambia nombre y color de los dos equipos sin tocar los eventos. Con localEsperado es idempotente: si el local actual ya no es ese, no intercambia y responde aplicado:false con el estado actual.',
   })
-  intercambiarEquipos(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.rapidoService.intercambiarEquipos(id, user);
+  @ApiBody({ type: IntercambiarEquiposDto, required: false })
+  intercambiarEquipos(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: IntercambiarEquiposDto,
+  ) {
+    return this.rapidoService.intercambiarEquipos(id, user, dto);
   }
 
   /**

@@ -183,6 +183,63 @@ describe('RapidoService (HU-2.7, partido rápido sin cuenta)', () => {
       expect(r).toEqual({
         equipoLocal: { id: 'eq-l', nombre: 'Lobos' },
         equipoVisitante: { id: 'eq-v', nombre: 'Toros' },
+        aplicado: true,
+      });
+    });
+
+    describe('idempotencia con localEsperado', () => {
+      it('intercambia cuando localEsperado coincide con el local actual', async () => {
+        mockTx.partido.findUnique.mockResolvedValue(partido());
+        const r = await service.intercambiarEquipos('p-1', dueno, {
+          localEsperado: 'Toros',
+        });
+        expect(mockTx.equipo.update).toHaveBeenCalledTimes(2);
+        expect(r).toEqual({
+          equipoLocal: { id: 'eq-l', nombre: 'Lobos' },
+          equipoVisitante: { id: 'eq-v', nombre: 'Toros' },
+          aplicado: true,
+        });
+      });
+
+      it('no intercambia y devuelve el estado actual con aplicado:false cuando no coincide (reintento)', async () => {
+        // El primer intento ya dejó Lobos como local; el reintento aún cree
+        // que el local es Toros.
+        mockTx.partido.findUnique.mockResolvedValue({
+          ...partido(),
+          equipoLocal: { id: 'eq-l', nombre: 'Lobos', colorPrimario: null },
+          equipoVisitante: {
+            id: 'eq-v',
+            nombre: 'Toros',
+            colorPrimario: '#111111',
+          },
+        });
+        const r = await service.intercambiarEquipos('p-1', dueno, {
+          localEsperado: 'Toros',
+        });
+        expect(mockTx.equipo.update).not.toHaveBeenCalled();
+        expect(r).toEqual({
+          equipoLocal: { id: 'eq-l', nombre: 'Lobos' },
+          equipoVisitante: { id: 'eq-v', nombre: 'Toros' },
+          aplicado: false,
+        });
+      });
+
+      it('sin localEsperado (clientes viejos) intercambia siempre', async () => {
+        mockTx.partido.findUnique.mockResolvedValue(partido());
+        const r = await service.intercambiarEquipos('p-1', dueno, {});
+        expect(mockTx.equipo.update).toHaveBeenCalledTimes(2);
+        expect(r.aplicado).toBe(true);
+      });
+
+      it('sigue validando permisos aunque localEsperado no coincida', async () => {
+        mockTx.partido.findUnique.mockResolvedValue(partido());
+        await expect(
+          service.intercambiarEquipos(
+            'p-1',
+            { ...dueno, sub: 'ajeno' },
+            { localEsperado: 'Otro' },
+          ),
+        ).rejects.toBeInstanceOf(ForbiddenException);
       });
     });
 
