@@ -276,8 +276,14 @@ export interface AnotadorPublico {
 }
 
 export interface ResumenPartido extends PartidoPublico {
-  categoria: { id: string; nombre: string };
-  liga: { id: string; nombre: string; logoUrl: string | null; esRapida: boolean };
+  /**
+   * En un partido rápido (`liga.esRapida`) la API omite los ids de la
+   * categoría y la liga contenedoras: con ellos se llegaría a los demás
+   * partidos rápidos del mismo invitado. Solo enlaza a `/categoria/:id`
+   * cuando la liga es normal.
+   */
+  categoria: { id?: string; nombre: string };
+  liga: { id?: string; nombre: string; logoUrl: string | null; esRapida: boolean };
   mvp: { id: string; nombre: string; numeroJersey: string; equipoId: string } | null;
   arbitros: { nombre: string; rolEnCampo: string }[];
   anotadores: AnotadorPublico[];

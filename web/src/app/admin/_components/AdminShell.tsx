@@ -82,7 +82,9 @@ export default function AdminShell({
           <SidebarLink href="/admin/ligas" icon="🏆" label="Ligas y Categorías" onNavigate={() => setMobileNavOpen(false)} />
           <SidebarLink href="/admin/equipos" icon="🛡️" label="Equipos y Rosters" onNavigate={() => setMobileNavOpen(false)} />
           <SidebarLink href="/admin/partidos" icon="🏈" label="Gestión de Partidos" onNavigate={() => setMobileNavOpen(false)} />
-          <SidebarLink href="/admin/arbitros" icon="🦓" label="Árbitros" onNavigate={() => setMobileNavOpen(false)} />
+          {rol === "SUPERADMIN" && (
+            <SidebarLink href="/admin/arbitros" icon="🦓" label="Árbitros" onNavigate={() => setMobileNavOpen(false)} />
+          )}
         </nav>
 
         {/* Perfil del Administrador (Tu Cuenta) */}
