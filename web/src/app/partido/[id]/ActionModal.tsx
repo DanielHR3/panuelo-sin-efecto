@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Icono, type NombreIcono } from "@/components/icons/Icono";
 import type { EquipoConRoster, Jugador } from "@/lib/types";
 import {
   DEFPLAY_LABEL,
@@ -14,6 +15,14 @@ import {
   type TdTipo,
   type TeamSide,
 } from "./flow";
+
+const ICONO_TD: Record<TdTipo, NombreIcono> = { TD: "touchdown", PICK_SIX: "escudo" };
+const ICONO_FLAG: Record<FlagTipo, NombreIcono> = { FALTA_PERSONAL: "falta", EXPULSION: "alerta" };
+const ICONO_DEFPLAY: Record<DefplayTipo, NombreIcono> = {
+  SACK: "escudo",
+  INTERCEPCION: "intercambiar",
+  SAFETY: "escudo",
+};
 
 export function ActionModal({
   flow,
@@ -60,7 +69,7 @@ export function ActionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4"
       onClick={onClose}
     >
       <div
@@ -70,16 +79,16 @@ export function ActionModal({
         aria-label={STEP_TITLE[flow.step]}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-background rounded-[2rem] p-6 shadow-2xl flex flex-col gap-6 relative border border-foreground/10 outline-none"
+        className="w-full max-w-md bg-panel rounded-[10px] p-6 shadow-2xl flex flex-col gap-6 relative border border-texto/15 border-t-4 border-t-panuelo outline-none"
       >
-        <div className="flex justify-between items-center border-b border-foreground/10 pb-4">
-          <h3 className="text-2xl font-black">{STEP_TITLE[flow.step]}</h3>
+        <div className="flex justify-between items-center gap-3 border-b border-texto/15 pb-4">
+          <h3 className="titulo-estadio text-2xl leading-tight">{STEP_TITLE[flow.step]}</h3>
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="p-3 bg-foreground/5 rounded-full font-bold"
+            className="p-3 rounded-lg bg-panel-alterno border border-texto/15 text-2xl shrink-0"
           >
-            ✕
+            <Icono nombre="cerrar" />
           </button>
         </div>
 
@@ -89,8 +98,9 @@ export function ActionModal({
               <button
                 key={tipoEvento}
                 onClick={() => dispatch({ type: "elegir_td_tipo", tipoEvento })}
-                className="p-5 rounded-2xl border-2 border-foreground/10 font-black text-xl hover:bg-foreground/5 animate-pop"
+                className="p-5 rounded-lg border-2 border-texto/15 bg-panel-alterno flex items-center justify-center gap-3 font-black text-xl animate-pop"
               >
+                <Icono nombre={ICONO_TD[tipoEvento]} className="text-2xl shrink-0" />
                 {TD_LABEL[tipoEvento]}
               </button>
             ))}
@@ -103,8 +113,9 @@ export function ActionModal({
               <button
                 key={tipoEvento}
                 onClick={() => dispatch({ type: "elegir_flag_tipo", tipoEvento })}
-                className="p-5 rounded-2xl border-2 border-yellow-500/30 font-black text-xl hover:bg-yellow-500/10 animate-pop text-yellow-600 dark:text-yellow-400"
+                className="p-5 rounded-lg border-2 border-panuelo flex items-center justify-center gap-3 font-black text-xl animate-pop text-panuelo-texto"
               >
+                <Icono nombre={ICONO_FLAG[tipoEvento]} className="text-2xl shrink-0" />
                 {FLAG_LABEL[tipoEvento]}
               </button>
             ))}
@@ -117,8 +128,9 @@ export function ActionModal({
               <button
                 key={tipoEvento}
                 onClick={() => dispatch({ type: "elegir_defplay_tipo", tipoEvento })}
-                className="p-5 rounded-2xl border-2 border-red-500/30 font-black text-xl hover:bg-red-500/10 animate-pop text-red-600 dark:text-red-400"
+                className="p-5 rounded-lg border-2 border-texto/15 border-l-[6px] border-l-visitante bg-panel-alterno flex items-center justify-center gap-3 font-black text-xl animate-pop"
               >
+                <Icono nombre={ICONO_DEFPLAY[tipoEvento]} className="text-2xl shrink-0" />
                 {DEFPLAY_LABEL[tipoEvento]}
               </button>
             ))}
@@ -133,10 +145,8 @@ export function ActionModal({
                 <button
                   key={team}
                   onClick={() => dispatch({ type: "elegir_equipo", team })}
-                  className={`p-6 rounded-2xl border-4 font-black text-xl animate-pop flex flex-col items-center gap-2 ${
-                    team === "local"
-                      ? "border-team-a/30 text-team-a"
-                      : "border-team-b/30 text-team-b"
+                  className={`p-6 rounded-lg text-white titulo-estadio text-2xl break-words animate-pop flex flex-col items-center gap-2 ${
+                    team === "local" ? "bg-local" : "bg-visitante"
                   }`}
                 >
                   {equipo.nombre}
@@ -170,7 +180,7 @@ function PlayerGrid({
   return (
     <div className="flex flex-col gap-3">
       {equipo.jugadores.length === 0 ? (
-        <p className="text-center text-foreground/60 py-4">
+        <p className="text-center text-suave py-4">
           {equipo.nombre} no tiene jugadores registrados todavía.
         </p>
       ) : (
@@ -179,9 +189,9 @@ function PlayerGrid({
             <button
               key={jugador.id}
               onClick={() => onSelect(jugador)}
-              className="flex flex-col items-center justify-center gap-1 p-4 rounded-2xl border-2 border-foreground/10 hover:bg-foreground/5 active:scale-95 transition-transform"
+              className="flex flex-col items-center justify-center gap-1 p-4 rounded-lg border-2 border-texto/15 bg-panel-alterno active:scale-95 transition-transform"
             >
-              <span className="text-4xl font-black">#{jugador.numeroJersey}</span>
+              <span className="font-display italic font-extrabold text-5xl leading-none">#{jugador.numeroJersey}</span>
               <span className="text-sm font-bold truncate w-full text-center">{jugador.nombre}</span>
             </button>
           ))}
@@ -189,7 +199,7 @@ function PlayerGrid({
       )}
       <button
         onClick={onSkip}
-        className="p-3 rounded-2xl border-2 border-dashed border-foreground/20 text-sm font-semibold text-foreground/60 hover:bg-foreground/5"
+        className="p-3 rounded-lg border-2 border-dashed border-texto/25 text-sm font-semibold text-suave"
       >
         Continuar sin jugador específico →
       </button>

@@ -29,7 +29,10 @@ export type NombreIcono =
   | "cerrar"
   | "saludo"
   | "monitor"
-  | "grafica";
+  | "grafica"
+  | "reproducir"
+  | "pausa"
+  | "deshacer";
 
 const TRAZOS: Record<NombreIcono, JSX.Element> = {
   // Balón ovalado con costuras.
@@ -176,6 +179,15 @@ const TRAZOS: Record<NombreIcono, JSX.Element> = {
     <>
       <path d="M4 4v16h16" />
       <path d="M7 15l4-4 3 3 5-6" />
+    </>
+  ),
+  reproducir: <path d="M7 4.5v15L19 12z" />,
+  pausa: <path d="M8 5v14M16 5v14" />,
+  // Flecha que regresa: deshacer la última jugada.
+  deshacer: (
+    <>
+      <path d="M9 14L4 9l5-5" />
+      <path d="M4 9h10a6 6 0 0 1 0 12h-3" />
     </>
   ),
 };

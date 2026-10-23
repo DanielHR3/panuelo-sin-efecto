@@ -65,19 +65,19 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
 }
 
 export const TD_LABEL: Record<TdTipo, string> = {
-  TD: "🏈 Touchdown",
-  PICK_SIX: "🛡️ Pick Six (INT)",
+  TD: "Touchdown",
+  PICK_SIX: "Pick Six (INT)",
 };
 
 export const FLAG_LABEL: Record<FlagTipo, string> = {
-  FALTA_PERSONAL: "⚠️ Foul Personal",
-  EXPULSION: "🤬 Conducta Antideportiva",
+  FALTA_PERSONAL: "Foul Personal",
+  EXPULSION: "Conducta Antideportiva",
 };
 
 export const DEFPLAY_LABEL: Record<DefplayTipo, string> = {
-  SACK: "🛡️ Sack",
-  INTERCEPCION: "🎯 Intercepción",
-  SAFETY: "🔒 Safety",
+  SACK: "Sack",
+  INTERCEPCION: "Intercepción",
+  SAFETY: "Safety",
 };
 
 /**
