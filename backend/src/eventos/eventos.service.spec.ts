@@ -41,7 +41,12 @@ function partidoBase(estado: string) {
 
 const mockTx = {
   $executeRaw: jest.fn(),
-  eventoPartido: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  eventoPartido: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    count: jest.fn(),
+  },
   partido: { update: jest.fn(), findUniqueOrThrow: jest.fn() },
   discrepanciaEvento: { createMany: jest.fn() },
 };
@@ -66,6 +71,7 @@ describe('EventosService', () => {
     mockTx.eventoPartido.create.mockResolvedValue({ id: 'ev1' });
     mockTx.eventoPartido.findMany.mockResolvedValue([]);
     mockTx.eventoPartido.count.mockResolvedValue(0);
+    mockTx.eventoPartido.findFirst.mockResolvedValue(null);
     mockTx.partido.update.mockResolvedValue({});
     // Lectura fresca de estado DENTRO de la transacción (finding 2): por
     // defecto EN_CURSO, salvo que un test la sobreescriba con
@@ -483,6 +489,191 @@ describe('EventosService', () => {
       arbitroAsignado,
     );
     expect(mockTx.discrepanciaEvento.createMany).not.toHaveBeenCalled();
+  });
+
+  describe('corregir un partido finalizado', () => {
+    const horasAtras = (h: number) => new Date(Date.now() - h * 3600_000);
+    const finalizado = () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('FINALIZADO'),
+      );
+      mockTx.partido.findUniqueOrThrow.mockResolvedValueOnce({
+        estado: 'FINALIZADO',
+      });
+    };
+    const reabierto = () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce(
+        partidoBase('EN_CURSO'),
+      );
+    };
+    const anular = (id = 'ev-td') =>
+      service.registrar(
+        'p1',
+        { tipoEvento: 'ANULAR_EVENTO', eventoAnuladoId: id },
+        arbitroAsignado,
+      );
+
+    it('REABRIR_PARTIDO en FINALIZADO lo pasa a EN_CURSO', async () => {
+      finalizado();
+      await service.registrar(
+        'p1',
+        { tipoEvento: 'REABRIR_PARTIDO' },
+        arbitroAsignado,
+      );
+      const [[arg]] = mockTx.partido.update.mock.calls as unknown[][];
+      expect((arg as { data: { estado?: string } }).data.estado).toBe(
+        'EN_CURSO',
+      );
+    });
+
+    it('REABRIR_PARTIDO en EN_CURSO -> 400', async () => {
+      reabierto();
+      await expect(
+        service.registrar(
+          'p1',
+          { tipoEvento: 'REABRIR_PARTIDO' },
+          arbitroAsignado,
+        ),
+      ).rejects.toThrow('El partido no está finalizado');
+    });
+
+    it('árbitro asignado puede reabrir dentro de 48 h', async () => {
+      finalizado();
+      mockTx.eventoPartido.findFirst.mockResolvedValueOnce({
+        timestamp: horasAtras(47),
+      });
+      await expect(
+        service.registrar(
+          'p1',
+          { tipoEvento: 'REABRIR_PARTIDO' },
+          arbitroAsignado,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('árbitro asignado no puede reabrir después de 48 h', async () => {
+      finalizado();
+      mockTx.eventoPartido.findFirst.mockResolvedValueOnce({
+        timestamp: horasAtras(49),
+      });
+      const p = service.registrar(
+        'p1',
+        { tipoEvento: 'REABRIR_PARTIDO' },
+        arbitroAsignado,
+      );
+      await expect(p).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(p).rejects.toThrow(
+        'El plazo para corregir este partido (48 h) ya terminó; pídeselo al organizador de la liga',
+      );
+    });
+
+    it('dueño de la liga puede reabrir después de 48 h', async () => {
+      finalizado();
+      mockTx.eventoPartido.findFirst.mockResolvedValue({
+        timestamp: horasAtras(100),
+      });
+      await expect(
+        service.registrar('p1', { tipoEvento: 'REABRIR_PARTIDO' }, dueno),
+      ).resolves.toBeDefined();
+    });
+
+    it('ANULAR_EVENTO sin eventoAnuladoId -> 400', async () => {
+      reabierto();
+      await expect(
+        service.registrar(
+          'p1',
+          { tipoEvento: 'ANULAR_EVENTO' },
+          arbitroAsignado,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('ANULAR_EVENTO sin haber reabierto -> 400', async () => {
+      reabierto();
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        { id: 'ev-td', tipoEvento: 'TD', eventoAnuladoId: null },
+      ]);
+      await expect(anular()).rejects.toThrow(
+        'Solo se pueden anular eventos al corregir un partido finalizado',
+      );
+    });
+
+    it('ANULAR_EVENTO a un evento de otro partido -> 400', async () => {
+      reabierto();
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        { id: 'r1', tipoEvento: 'REABRIR_PARTIDO', eventoAnuladoId: null },
+      ]);
+      await expect(anular('otro')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('ANULAR_EVENTO a un FIN_MITAD -> 400', async () => {
+      reabierto();
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        { id: 'fm', tipoEvento: 'FIN_MITAD', eventoAnuladoId: null },
+        { id: 'r1', tipoEvento: 'REABRIR_PARTIDO', eventoAnuladoId: null },
+      ]);
+      await expect(anular('fm')).rejects.toThrow(
+        'Ese evento no se puede anular',
+      );
+    });
+
+    it('ANULAR_EVENTO a un evento ya anulado -> 400', async () => {
+      reabierto();
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        { id: 'ev-td', tipoEvento: 'TD', eventoAnuladoId: null },
+        { id: 'r1', tipoEvento: 'REABRIR_PARTIDO', eventoAnuladoId: null },
+        { id: 'an1', tipoEvento: 'ANULAR_EVENTO', eventoAnuladoId: 'ev-td' },
+      ]);
+      await expect(anular()).rejects.toThrow('Ese evento ya está anulado');
+    });
+
+    it('ANULAR_EVENTO válido guarda eventoAnuladoId', async () => {
+      reabierto();
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        { id: 'ev-td', tipoEvento: 'TD', eventoAnuladoId: null },
+        { id: 'r1', tipoEvento: 'REABRIR_PARTIDO', eventoAnuladoId: null },
+      ]);
+      await anular();
+      const [[arg]] = mockTx.eventoPartido.create.mock.calls as unknown[][];
+      expect(
+        (arg as { data: { eventoAnuladoId?: string } }).data.eventoAnuladoId,
+      ).toBe('ev-td');
+    });
+
+    it('refinalizar con varios árbitros llama a createMany con skipDuplicates', async () => {
+      mockPrisma.partido.findUnique.mockResolvedValueOnce({
+        ...partidoBase('EN_CURSO'),
+        asignaciones: [{ arbitroId: 'ref-1' }, { arbitroId: 'ref-2' }],
+      });
+      mockTx.eventoPartido.count.mockResolvedValueOnce(2); // ya hubo FIN_MITAD (reabierto)
+      mockTx.eventoPartido.findMany.mockResolvedValueOnce([
+        {
+          id: 'e1',
+          tipoEvento: 'TD',
+          equipoId: LOCAL_ID,
+          arbitroId: 'ref-1',
+          timestamp: new Date('2026-09-20T18:00:00.000Z'),
+          eventoAnuladoId: null,
+        },
+        {
+          id: 'e2',
+          tipoEvento: 'TD',
+          equipoId: LOCAL_ID,
+          arbitroId: 'ref-2',
+          timestamp: new Date('2026-09-20T18:00:05.000Z'),
+          eventoAnuladoId: null,
+        },
+      ]);
+      await service.registrar(
+        'p1',
+        { tipoEvento: 'FIN_MITAD' },
+        arbitroAsignado,
+      );
+      const [arg] = mockTx.discrepanciaEvento.createMany.mock.calls[0] as [
+        { skipDuplicates?: boolean },
+      ];
+      expect(arg.skipDuplicates).toBe(true);
+    });
   });
 
   describe('finding 2: carrera del segundo FIN_MITAD entre dos árbitros', () => {

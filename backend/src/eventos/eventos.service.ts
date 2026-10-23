@@ -13,8 +13,10 @@ import {
   filtrarEventosVigentes,
   type Marcador,
 } from './marcador';
-import { puntosDe } from './evento.constants';
+import { esAnulable, puntosDe } from './evento.constants';
 import { detectarDiscrepancias } from './discrepancias';
+
+const PLAZO_CORRECCION_MS = 48 * 3600_000;
 
 @Injectable()
 export class EventosService {
@@ -79,6 +81,12 @@ export class EventosService {
       );
     }
 
+    if (dto.tipoEvento === 'ANULAR_EVENTO' && !dto.eventoAnuladoId) {
+      throw new BadRequestException(
+        'ANULAR_EVENTO requiere eventoAnuladoId (el evento que se anula)',
+      );
+    }
+
     try {
       return await this.prisma.$transaction(async (tx) => {
         // Serialización por partido (HU-2.6, finding 2). En PostgreSQL con
@@ -100,6 +108,15 @@ export class EventosService {
           estadoActual.estado,
           dto,
         );
+        if (dto.tipoEvento === 'REABRIR_PARTIDO') {
+          await this.assertPuedeReabrir(tx, partidoId, partido, arbitro);
+        } else if (dto.tipoEvento === 'ANULAR_EVENTO') {
+          await this.assertPuedeAnular(
+            tx,
+            partidoId,
+            dto.eventoAnuladoId as string,
+          );
+        }
 
         const evento = await tx.eventoPartido.create({
           data: {
@@ -107,6 +124,7 @@ export class EventosService {
             tipoEvento: dto.tipoEvento,
             clientEventId: dto.clientEventId ?? null,
             equipoId: dto.equipoId ?? null,
+            eventoAnuladoId: dto.eventoAnuladoId ?? null,
             jugadorId: dto.jugadorId ?? null,
             arbitroId: arbitro.sub,
             ...(dto.timestamp ? { timestamp: new Date(dto.timestamp) } : {}),
@@ -284,6 +302,12 @@ export class EventosService {
     estadoActual: string,
     dto: RegistrarEventoDto,
   ): Promise<string> {
+    if (dto.tipoEvento === 'REABRIR_PARTIDO') {
+      if (estadoActual !== 'FINALIZADO') {
+        throw new BadRequestException('El partido no está finalizado');
+      }
+      return 'EN_CURSO';
+    }
     if (estadoActual === 'FINALIZADO') {
       throw new BadRequestException(
         'El partido ya finalizó; no admite más eventos',
@@ -304,5 +328,70 @@ export class EventosService {
       if (finesPrevios >= 1) return 'FINALIZADO';
     }
     return estadoActual;
+  }
+
+  /**
+   * Reabrir un partido finalizado: el dueño de la liga y el superadmin
+   * siempre pueden; el árbitro asignado solo dentro de las 48 h siguientes
+   * al último FIN_MITAD.
+   */
+  private async assertPuedeReabrir(
+    tx: Prisma.TransactionClient,
+    partidoId: string,
+    partido: { categoria: { liga: { propietarioId: string } } },
+    usuario: AuthUser,
+  ): Promise<void> {
+    const esDuenoOSuperadmin =
+      usuario.rol === 'SUPERADMIN' ||
+      partido.categoria.liga.propietarioId === usuario.sub;
+    if (esDuenoOSuperadmin) return;
+
+    const ultimoFin = await tx.eventoPartido.findFirst({
+      where: { partidoId, tipoEvento: 'FIN_MITAD', descartado: false },
+      orderBy: [{ timestamp: 'desc' }, { id: 'desc' }],
+      select: { timestamp: true },
+    });
+    if (
+      ultimoFin &&
+      ultimoFin.timestamp.getTime() < Date.now() - PLAZO_CORRECCION_MS
+    ) {
+      throw new ForbiddenException(
+        'El plazo para corregir este partido (48 h) ya terminó; pídeselo al organizador de la liga',
+      );
+    }
+  }
+
+  /**
+   * ANULAR_EVENTO solo vale tras reabrir el partido, contra un evento
+   * anulable de este mismo partido que siga vigente.
+   */
+  private async assertPuedeAnular(
+    tx: Prisma.TransactionClient,
+    partidoId: string,
+    eventoAnuladoId: string,
+  ): Promise<void> {
+    const eventos = await tx.eventoPartido.findMany({
+      where: { partidoId, descartado: false },
+      orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
+      select: { id: true, tipoEvento: true, eventoAnuladoId: true },
+    });
+    if (!eventos.some((e) => e.tipoEvento === 'REABRIR_PARTIDO')) {
+      throw new BadRequestException(
+        'Solo se pueden anular eventos al corregir un partido finalizado',
+      );
+    }
+    const objetivo = eventos.find((e) => e.id === eventoAnuladoId);
+    if (!objetivo) {
+      throw new BadRequestException(
+        'El evento a anular no pertenece a este partido',
+      );
+    }
+    if (!esAnulable(objetivo.tipoEvento)) {
+      throw new BadRequestException('Ese evento no se puede anular');
+    }
+    const vigentes = filtrarEventosVigentes(eventos);
+    if (!vigentes.some((e) => e.id === eventoAnuladoId)) {
+      throw new BadRequestException('Ese evento ya está anulado');
+    }
   }
 }
