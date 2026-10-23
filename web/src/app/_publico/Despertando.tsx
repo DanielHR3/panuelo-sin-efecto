@@ -25,17 +25,17 @@ export function Despertando() {
   return (
     <section
       role="status"
-      className="rounded-2xl border border-foreground/10 p-6 flex flex-col gap-2 max-w-md"
+      className="panel p-6 flex flex-col gap-2 max-w-md"
     >
-      <p className="font-bold text-lg">Despertando el marcador…</p>
-      <p className="text-sm opacity-70">
+      <p className="titulo-estadio text-2xl">Despertando el marcador…</p>
+      <p className="text-sm text-suave">
         El servidor estaba dormido. Suele tardar menos de un minuto; esta página se
         actualiza sola{intentos > 0 ? ` (intento ${intentos + 1})` : ""}.
       </p>
       <button
         type="button"
         onClick={() => router.refresh()}
-        className="self-start mt-1 px-4 py-2 rounded-xl bg-foreground/10 text-sm font-semibold"
+        className="self-start mt-1 px-4 py-2 rounded-lg bg-panel-alterno border border-texto/15 text-sm font-display font-bold uppercase tracking-[0.06em]"
       >
         Reintentar ahora
       </button>

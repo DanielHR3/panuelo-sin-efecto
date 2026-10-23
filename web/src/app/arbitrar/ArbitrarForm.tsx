@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 const INPUT =
-  "p-4 rounded-2xl border-2 border-foreground/15 bg-background text-lg font-bold focus:outline-none focus:border-panuelo";
+  "p-4 rounded-lg border-2 border-texto/20 bg-panel text-lg font-bold focus:outline-none focus:border-panuelo-texto";
 
 /**
  * HU-2.7: dos nombres y a arbitrar. Sin cuenta, sin contraseña. Si el
@@ -74,7 +74,7 @@ export function ArbitrarForm() {
         />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-semibold">
-        Tu nombre <span className="font-normal opacity-60">(opcional, sale en el resumen)</span>
+        Tu nombre <span className="font-normal text-suave">(opcional, sale en el resumen)</span>
         <input
           maxLength={40}
           autoComplete="name"
@@ -94,11 +94,11 @@ export function ArbitrarForm() {
       <button
         type="submit"
         disabled={enviando}
-        className="mt-2 p-4 rounded-2xl bg-panuelo text-[#1a1600] text-xl font-black shadow-lg disabled:opacity-50 active:scale-95 transition-transform"
+        className="boton-panuelo mt-2 p-4 text-2xl disabled:opacity-50 active:scale-95 transition-transform"
       >
         {enviando ? "Preparando el partido…" : "Empezar a arbitrar"}
       </button>
-      <p className="text-xs opacity-60">
+      <p className="text-xs text-suave">
         Sin registro. El marcador funciona aunque se vaya la señal y se sincroniza solo al volver.
       </p>
     </form>

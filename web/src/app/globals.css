@@ -61,26 +61,8 @@
   --color-foreground: var(--foreground);
   --color-team-a: var(--team-a);
   --color-team-b: var(--team-b);
-  /* Paleta heredada de la vista pública (se retira al restilarla). */
-  --color-campo: #0f5132;
-  --color-campo-claro: #15803d;
-  --color-tiza: #f8fafc;
   --font-sans: var(--font-barlow);
   --font-display: var(--font-barlow-condensed);
-}
-
-/* Fondo del marcador público: líneas de yarda sobre el campo. */
-.campo-yardas {
-  background-color: var(--color-campo);
-  background-image:
-    linear-gradient(135deg, rgba(21, 128, 61, 0.55), rgba(5, 46, 22, 0.6)),
-    repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent 44px,
-      rgba(255, 255, 255, 0.09) 44px,
-      rgba(255, 255, 255, 0.09) 46px
-    );
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -97,30 +79,45 @@ body {
   overscroll-behavior: none; 
 }
 
-/* Panel sólido de la Transmisión de estadio. */
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--borde);
-  border-radius: 10px;
-}
+/* En la capa de componentes para que las utilidades de Tailwind (rounded-*,
+ * border-*, bg-*) puedan sobrescribirlas; fuera de capa ganarían siempre. */
+@layer components {
+  /* Panel sólido de la Transmisión de estadio. */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+  }
 
-.titulo-estadio {
-  font-family: var(--font-display), sans-serif;
-  font-style: italic;
-  font-weight: 800;
-  text-transform: uppercase;
-}
+  .titulo-estadio {
+    font-family: var(--font-display), sans-serif;
+    font-style: italic;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
 
-/* Césped: franjas verticales alternas de 30 px. */
-.franjas-campo {
-  background-color: var(--franja-1);
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--franja-1) 0,
-    var(--franja-1) 30px,
-    var(--franja-2) 30px,
-    var(--franja-2) 60px
-  );
+  /* Césped: franjas verticales alternas de 30 px. */
+  .franjas-campo {
+    background-color: var(--franja-1);
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--franja-1) 0,
+      var(--franja-1) 30px,
+      var(--franja-2) 30px,
+      var(--franja-2) 60px
+    );
+  }
+
+  /* Botón principal: el pañuelo amarillo con texto azul tele en ambos modos. */
+  .boton-panuelo {
+    background-color: var(--panuelo);
+    color: #0A1A33;
+    border-radius: 8px;
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
 }
 
 /* Micro-animations */
