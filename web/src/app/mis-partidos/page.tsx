@@ -22,7 +22,7 @@ export default async function MisPartidosPage() {
 
   return (
     <main className="flex-1 flex flex-col p-4 max-w-md mx-auto w-full gap-4">
-      <header className="glass-panel rounded-3xl p-5 mb-2 flex items-end justify-between gap-3">
+      <header className="panel rounded-3xl p-5 mb-2 flex items-end justify-between gap-3">
         <div>
           <span className="text-xs font-bold uppercase tracking-widest opacity-60">
             Pañuelo sin efecto
@@ -42,7 +42,7 @@ export default async function MisPartidosPage() {
       </Link>
 
       {partidos.length === 0 ? (
-        <div className="glass-panel rounded-3xl p-8 flex flex-col items-center justify-center text-center gap-2 py-16">
+        <div className="panel rounded-3xl p-8 flex flex-col items-center justify-center text-center gap-2 py-16">
           <span className="text-5xl opacity-50">🏈</span>
           <p className="font-semibold">Todavía no tienes partidos asignados.</p>
           {yo && yo.rol !== "ARBITRO" && (
@@ -57,7 +57,7 @@ export default async function MisPartidosPage() {
             <li key={partido.id}>
               <Link
                 href={`/partido/${partido.id}`}
-                className="glass-panel rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
+                className="panel rounded-2xl p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform"
               >
                 <div>
                   <p className="text-xs opacity-60 font-semibold">

@@ -491,7 +491,7 @@ export default function ScoreboardClient({
 
   return (
     <main className="flex-1 flex flex-col p-4 max-w-md mx-auto w-full gap-4 select-none relative h-[100dvh]">
-      <header className="flex justify-between items-center glass-panel rounded-3xl p-5 mb-2">
+      <header className="flex justify-between items-center panel rounded-3xl p-5 mb-2">
         <div className="flex flex-col">
           <span className="text-xs font-bold uppercase tracking-widest opacity-60">
             {partido.categoria?.liga.nombre} · {partido.categoria?.nombre}
@@ -528,7 +528,7 @@ export default function ScoreboardClient({
       </header>
 
       {!finalizado && !corrigiendo && (
-        <div className="glass-panel rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="panel rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-col min-w-0">
             <span className="text-xs font-bold uppercase tracking-widest opacity-60">Cronómetro de Mitad</span>
             <span className={`text-3xl font-black tabular-nums ${halfTimer.remainingSeconds <= 120 ? "text-red-500" : ""}`}>
@@ -682,21 +682,21 @@ export default function ScoreboardClient({
         <button
           onClick={handleDefplayIntent}
           disabled={finalizado || pending}
-          className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center disabled:opacity-30"
+          className="panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-80 animate-pop border-b-4 border-b-red-500 shadow-md text-sm text-center disabled:opacity-30"
         >
           🛡️ Sack/<br />Pick/Safety
         </button>
         <button
           onClick={handleFlagIntent}
           disabled={finalizado || pending}
-          className="glass-panel rounded-2xl py-4 flex flex-col items-center justify-center font-black animate-pop border-b-4 border-b-yellow-400 bg-yellow-500/10 shadow-lg text-lg text-yellow-600 dark:text-yellow-400 disabled:opacity-30"
+          className="panel rounded-2xl py-4 flex flex-col items-center justify-center font-black animate-pop border-b-4 border-b-yellow-400 bg-yellow-500/10 shadow-lg text-lg text-yellow-600 dark:text-yellow-400 disabled:opacity-30"
         >
           🟨 FLAG
         </button>
         <button
           onClick={handleUndo}
           disabled={undoDeshabilitado}
-          className="glass-panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm disabled:opacity-30"
+          className="panel rounded-2xl py-4 flex items-center justify-center font-bold opacity-70 animate-pop border border-foreground/10 text-sm disabled:opacity-30"
         >
           ↩️ Undo
         </button>
@@ -811,7 +811,7 @@ function TeamPanel({
   const c = TEAM_STYLES[side];
   return (
     <div
-      className={`glass-panel rounded-[2rem] p-5 flex flex-col items-center justify-between border-t-8 ${c.border} relative overflow-hidden shadow-2xl`}
+      className={`panel rounded-[2rem] p-5 flex flex-col items-center justify-between border-t-8 ${c.border} relative overflow-hidden shadow-2xl`}
     >
       <div className={`absolute inset-0 bg-gradient-to-b ${c.gradient} to-transparent pointer-events-none`} />
       <h2 className="text-2xl font-black tracking-widest uppercase text-center">{equipo.nombre}</h2>

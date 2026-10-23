@@ -26,7 +26,7 @@ export function CorregirPanel({
   const anulables = eventosAnulables(eventos);
 
   return (
-    <section className="glass-panel rounded-2xl p-4 flex flex-col gap-3" aria-label="Eventos anulables">
+    <section className="panel rounded-2xl p-4 flex flex-col gap-3" aria-label="Eventos anulables">
       <h2 className="text-xs font-bold uppercase tracking-widest opacity-60">Anular un evento</h2>
       {anulables.length === 0 ? (
         <p className="text-sm text-foreground/60">No hay jugadas ni faltas que anular.</p>

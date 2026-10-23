@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "App de arbitraje para flag football: marcador en vivo con Caja Negra de eventos.",
     start_url: "/",
     display: "standalone",
-    background_color: "#052e16",
-    theme_color: "#09090b",
+    background_color: "#0A1A33",
+    theme_color: "#0A1A33",
     orientation: "portrait",
     // PNG primero: iOS ignora los SVG al instalar en pantalla de inicio y
     // Android exige PNG para el ícono "maskable" (recorte adaptativo).

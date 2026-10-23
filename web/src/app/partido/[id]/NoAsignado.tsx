@@ -8,7 +8,7 @@ import Link from "next/link";
 export function NoAsignado({ partidoId }: { partidoId: string }) {
   return (
     <main className="flex-1 flex flex-col items-center justify-center p-4 w-full max-w-md mx-auto">
-      <div className="glass-panel rounded-3xl p-8 w-full flex flex-col items-center text-center gap-3">
+      <div className="panel rounded-3xl p-8 w-full flex flex-col items-center text-center gap-3">
         <span className="text-5xl" aria-hidden>
           🚩
         </span>
