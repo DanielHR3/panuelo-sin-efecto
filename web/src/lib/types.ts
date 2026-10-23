@@ -218,6 +218,8 @@ export interface LigaPublica {
   id: string;
   nombre: string;
   logoUrl: string | null;
+  /** Liga de ejemplo con datos ficticios (se muestra primero y marcada). */
+  esDemo?: boolean;
   categorias: CategoriaPublica[];
 }
 
@@ -226,7 +228,7 @@ export interface ResumenPublico {
 }
 
 export interface CategoriaPublicaDetalle extends CategoriaPublica {
-  liga: { id: string; nombre: string; logoUrl: string | null };
+  liga: { id: string; nombre: string; logoUrl: string | null; esDemo?: boolean };
 }
 
 export interface EstadisticasJugador {
@@ -249,7 +251,7 @@ export interface PerfilJugador {
   numeroJersey: string;
   equipo: EquipoPublico;
   categoria: { id: string; nombre: string };
-  liga: { id: string; nombre: string; logoUrl: string | null };
+  liga: { id: string; nombre: string; logoUrl: string | null; esDemo?: boolean };
   estadisticas: EstadisticasJugador;
   partidos: (PartidoPublico & { esMvp: boolean; puntos: number; td: number })[];
 }
@@ -283,7 +285,7 @@ export interface ResumenPartido extends PartidoPublico {
    * cuando la liga es normal.
    */
   categoria: { id?: string; nombre: string };
-  liga: { id?: string; nombre: string; logoUrl: string | null; esRapida: boolean };
+  liga: { id?: string; nombre: string; logoUrl: string | null; esRapida: boolean; esDemo?: boolean };
   mvp: { id: string; nombre: string; numeroJersey: string; equipoId: string } | null;
   arbitros: { nombre: string; rolEnCampo: string }[];
   anotadores: AnotadorPublico[];

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EtiquetaDemo } from "@/app/_publico/EtiquetaDemo";
 import { notFound } from "next/navigation";
 import { fetchPublico } from "@/lib/publico";
 import type { CategoriaPublicaDetalle } from "@/lib/types";
@@ -31,6 +32,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ id: 
                 ← {resultado.data.liga.nombre}
               </Link>
               <h1 className="titulo-estadio text-4xl sm:text-6xl leading-none">{resultado.data.nombre}</h1>
+              {resultado.data.liga.esDemo && <EtiquetaDemo />}
             </header>
 
             <section className="flex flex-col gap-2">

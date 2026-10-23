@@ -45,6 +45,10 @@ model Liga {
   // rápidos de un árbitro invitado; no aparece en la landing pública).
   tipo                   String  @default("LIGA")
 
+  // Liga de ejemplo con datos ficticios para que cualquiera vea la
+  // plataforma funcionando. La crea `asegurarLigaDemo` al arrancar la API.
+  esDemo                 Boolean @default(false)
+
   propietarioId String
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
   

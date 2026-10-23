@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
 import { asegurarSuperadmin } from './common/superadmin-bootstrap';
+import { asegurarLigaDemo } from './common/liga-demo';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,6 +19,15 @@ async function bootstrap() {
   );
   if (superadmin) {
     console.log(`Superadmin disponible: ${superadmin.email}`);
+  }
+
+  // Liga de ejemplo para la landing (idempotente). Un fallo aquí no debe
+  // impedir que la API arranque.
+  try {
+    const demo = await asegurarLigaDemo(app.get(PrismaService), process.env);
+    if (demo) console.log(`Liga demo creada: ${demo.id}`);
+  } catch (err) {
+    console.error('No se pudo crear la liga demo', err);
   }
 
   // Cabeceras de seguridad HTTP estándar (X-Content-Type-Options, HSTS,

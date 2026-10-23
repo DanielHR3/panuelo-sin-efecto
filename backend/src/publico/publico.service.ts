@@ -68,11 +68,13 @@ export class PublicoService {
       // Las ligas RAPIDA son el contenedor personal de un árbitro invitado
       // (HU-2.7): sus partidos se comparten por enlace, no en la portada.
       where: { tipo: 'LIGA' },
-      orderBy: { nombre: 'asc' },
+      // La liga demo va primero: es lo que ve quien llega sin liga propia.
+      orderBy: [{ esDemo: 'desc' }, { nombre: 'asc' }],
       select: {
         id: true,
         nombre: true,
         logoUrl: true,
+        esDemo: true,
         categorias: {
           orderBy: { nombre: 'asc' },
           select: {
@@ -123,6 +125,7 @@ export class PublicoService {
         id: liga.id,
         nombre: liga.nombre,
         logoUrl: liga.logoUrl,
+        esDemo: liga.esDemo,
         categorias: categoriasArmadas
           .filter((c) => c.ligaId === liga.id)
           .map((c) => c.categoria),
@@ -139,7 +142,9 @@ export class PublicoService {
       select: {
         id: true,
         nombre: true,
-        liga: { select: { id: true, nombre: true, logoUrl: true } },
+        liga: {
+          select: { id: true, nombre: true, logoUrl: true, esDemo: true },
+        },
         equipos: { select: equipoPublico, orderBy: { nombre: 'asc' } },
         partidos: { select: partidoPublico, orderBy: { fechaHora: 'desc' } },
       },
@@ -166,7 +171,14 @@ export class PublicoService {
               select: {
                 id: true,
                 nombre: true,
-                liga: { select: { id: true, nombre: true, logoUrl: true } },
+                liga: {
+                  select: {
+                    id: true,
+                    nombre: true,
+                    logoUrl: true,
+                    esDemo: true,
+                  },
+                },
               },
             },
           },
@@ -234,7 +246,13 @@ export class PublicoService {
             id: true,
             nombre: true,
             liga: {
-              select: { id: true, nombre: true, logoUrl: true, tipo: true },
+              select: {
+                id: true,
+                nombre: true,
+                logoUrl: true,
+                tipo: true,
+                esDemo: true,
+              },
             },
           },
         },
@@ -291,6 +309,7 @@ export class PublicoService {
       nombre: categoria.liga.nombre,
       logoUrl: categoria.liga.logoUrl,
       esRapida,
+      esDemo: categoria.liga.esDemo,
     };
     return {
       ...publico,

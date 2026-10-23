@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EtiquetaDemo } from "@/app/_publico/EtiquetaDemo";
 import { notFound } from "next/navigation";
 import { fetchPublico } from "@/lib/publico";
 import type { AnotadorPublico, ResumenPartido } from "@/lib/types";
@@ -99,6 +100,7 @@ function Resumen({ p }: { p: ResumenPartido }) {
             </dd>
           </div>
         </dl>
+        {p.liga.esDemo && <EtiquetaDemo />}
 
         <CompartirResultado resumen={p} />
 
