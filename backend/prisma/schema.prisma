@@ -153,7 +153,7 @@ model AsignacionArbitral {
 model EventoPartido {
   id            String   @id @default(uuid())
   timestamp     DateTime @default(now())
-  tipoEvento    String   // INICIO_MITAD, FIN_MITAD, TD, PAT1, PAT2, SAFETY, PICK_SIX, TIMEOUT, FALTA_PERSONAL, EXPULSION, INTERCEPCION, SACK, UNDO_LAST_ACTION
+  tipoEvento    String   // INICIO_MITAD, FIN_MITAD, TD, PAT1, PAT2, SAFETY, PICK_SIX, TIMEOUT, FALTA_PERSONAL, EXPULSION, INTERCEPCION, SACK, UNDO_LAST_ACTION, REABRIR_PARTIDO, ANULAR_EVENTO
 
   // Id generado por el dispositivo del árbitro. Permite que el reintento de la
   // cola offline sea idempotente: (partidoId, clientEventId) es único, así que
@@ -181,6 +181,11 @@ model EventoPartido {
   discrepanciasComoA         DiscrepanciaEvento[] @relation("DiscrepanciaEventoA")
   discrepanciasComoB         DiscrepanciaEvento[] @relation("DiscrepanciaEventoB")
   discrepanciasDescartadoEn  DiscrepanciaEvento[] @relation("DiscrepanciaEventoDescartado")
+
+  // Solo para ANULAR_EVENTO: el evento que esta anulación deja sin efecto.
+  eventoAnuladoId String?
+  eventoAnulado   EventoPartido?  @relation("EventoAnulado", fields: [eventoAnuladoId], references: [id])
+  anuladoPor      EventoPartido[] @relation("EventoAnulado")
 
   @@unique([partidoId, clientEventId])
   @@index([partidoId, timestamp])

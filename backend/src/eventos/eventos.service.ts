@@ -122,6 +122,7 @@ export class EventosService {
             equipoId: true,
             arbitroId: true,
             timestamp: true,
+            eventoAnuladoId: true,
           },
         });
         const marcador = calcularMarcador(
@@ -218,7 +219,12 @@ export class EventosService {
     const eventos = await this.prisma.eventoPartido.findMany({
       where: { partidoId, descartado: false },
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
-      select: { tipoEvento: true, equipoId: true },
+      select: {
+        id: true,
+        tipoEvento: true,
+        equipoId: true,
+        eventoAnuladoId: true,
+      },
     });
     return calcularMarcador(
       eventos,

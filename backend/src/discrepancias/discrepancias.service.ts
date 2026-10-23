@@ -166,7 +166,12 @@ export class DiscrepanciasService {
     const eventos = await tx.eventoPartido.findMany({
       where: { partidoId, descartado: false },
       orderBy: [{ timestamp: 'asc' }, { id: 'asc' }],
-      select: { tipoEvento: true, equipoId: true },
+      select: {
+        id: true,
+        tipoEvento: true,
+        equipoId: true,
+        eventoAnuladoId: true,
+      },
     });
     const marcador = calcularMarcador(
       eventos,

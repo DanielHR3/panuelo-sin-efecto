@@ -12,6 +12,8 @@ export const TIPOS_EVENTO = [
   'INTERCEPCION',
   'SACK',
   'UNDO_LAST_ACTION',
+  'REABRIR_PARTIDO',
+  'ANULAR_EVENTO',
 ] as const;
 
 export type TipoEvento = (typeof TIPOS_EVENTO)[number];
@@ -31,4 +33,25 @@ export const PUNTOS_POR_TIPO: Partial<Record<TipoEvento, number>> = {
 
 export function puntosDe(tipo: string): number {
   return PUNTOS_POR_TIPO[tipo as TipoEvento] ?? 0;
+}
+
+/**
+ * Tipos de evento que se pueden anular con ANULAR_EVENTO una vez finalizado
+ * el partido (corrección de un partido finalizado). Los eventos de control
+ * (INICIO_MITAD, FIN_MITAD, TIMEOUT, REABRIR_PARTIDO, ...) no se anulan.
+ */
+export const ANULABLES: readonly TipoEvento[] = [
+  'TD',
+  'PAT1',
+  'PAT2',
+  'SAFETY',
+  'PICK_SIX',
+  'FALTA_PERSONAL',
+  'EXPULSION',
+  'INTERCEPCION',
+  'SACK',
+];
+
+export function esAnulable(tipo: string): boolean {
+  return (ANULABLES as readonly string[]).includes(tipo);
 }
