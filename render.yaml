@@ -35,3 +35,11 @@ services:
       # Render no se puede correr por falta de shell.
       - key: SEED_SUPERADMIN_PASSWORD
         sync: false
+      # Datos para cobrar por SPEI (los ve el organizador al pagar). Se
+      # capturan en el panel de Render, nunca en el repo.
+      - key: PAGO_CLABE
+        sync: false
+      - key: PAGO_BANCO
+        sync: false
+      - key: PAGO_BENEFICIARIO
+        sync: false

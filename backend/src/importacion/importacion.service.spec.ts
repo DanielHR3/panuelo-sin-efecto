@@ -27,7 +27,12 @@ describe('ImportacionService', () => {
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const ownership = { assertCanManageLiga: jest.fn() };
-  const service = new ImportacionService(prisma as never, ownership as never);
+  const plan = { assertPermite: jest.fn() };
+  const service = new ImportacionService(
+    prisma as never,
+    ownership as never,
+    plan as never,
+  );
 
   let archivo: Buffer;
   beforeAll(async () => {

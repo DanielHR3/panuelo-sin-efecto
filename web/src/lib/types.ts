@@ -302,3 +302,31 @@ export interface ResumenPartido extends PartidoPublico {
   arbitros: { nombre: string; rolEnCampo: string }[];
   anotadores: AnotadorPublico[];
 }
+
+/** Plan pagado y periodo de un pago por SPEI (diseño, Parte 5). */
+export type PlanPagado = "ARBITRAJE" | "COMPLETO";
+export type PeriodoPago = "MENSUAL" | "ANUAL";
+
+export interface DatosPago {
+  configurado: boolean;
+  clabe: string | null;
+  banco: string | null;
+  beneficiario: string | null;
+  precios: Record<PlanPagado, Record<PeriodoPago, number>>;
+}
+
+export interface Pago {
+  id: string;
+  ligaId: string;
+  plan: PlanPagado;
+  periodo: PeriodoPago;
+  montoCentavos: number;
+  referencia: string;
+  estado: "PENDIENTE" | "CONFIRMADO" | "RECHAZADO";
+  motivoRechazo: string | null;
+  comprobanteNombre: string | null;
+  comprobanteTipo: string | null;
+  resueltoAt: string | null;
+  createdAt: string;
+  liga?: { nombre: string; propietario: { nombre: string; email: string } };
+}

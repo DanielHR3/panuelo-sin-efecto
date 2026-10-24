@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { puntosDe } from '../eventos/evento.constants';
 import {
@@ -58,6 +59,25 @@ const LIMITES_CATEGORIA: Limites = { recientes: 30, proximos: 10, lideres: 15 };
  * (HU-3.4 / HU-3.1). Solo lecturas; nunca expone árbitros, correos ni
  * eventos descartados.
  */
+/**
+ * Ligas que aparecen en la página pública: las normales (no RAPIDA) cuyo plan
+ * la incluye: cortesía, prueba (plan completo) o Completo pagado. Arbitraje y
+ * vencidas no salen (diseño, Parte 5); sus resultados compartidos por enlace
+ * (`partido`) sí siguen visibles.
+ */
+export function ligaPublica(ahora: Date): Prisma.LigaWhereInput {
+  return {
+    tipo: 'LIGA',
+    suscripcion: {
+      OR: [
+        { plan: 'CORTESIA' },
+        { plan: 'COMPLETO', pruebaHasta: { gt: ahora } },
+        { plan: 'COMPLETO', pagadoHasta: { gt: ahora } },
+      ],
+    },
+  };
+}
+
 @Injectable()
 export class PublicoService {
   constructor(private readonly prisma: PrismaService) {}
@@ -67,7 +87,7 @@ export class PublicoService {
     const ligas = await this.prisma.liga.findMany({
       // Las ligas RAPIDA son el contenedor personal de un árbitro invitado
       // (HU-2.7): sus partidos se comparten por enlace, no en la portada.
-      where: { tipo: 'LIGA' },
+      where: ligaPublica(new Date()),
       // La liga demo va primero: es lo que ve quien llega sin liga propia.
       orderBy: [{ esDemo: 'desc' }, { nombre: 'asc' }],
       select: {
@@ -138,7 +158,7 @@ export class PublicoService {
     // Las categorías de ligas RAPIDA (partidos rápidos de un invitado) no
     // son públicas: listarían todos los partidos rápidos de esa persona.
     const cat = await this.prisma.categoria.findFirst({
-      where: { id, liga: { tipo: 'LIGA' } },
+      where: { id, liga: ligaPublica(new Date()) },
       select: {
         id: true,
         nombre: true,
@@ -159,7 +179,7 @@ export class PublicoService {
   async jugador(id: string) {
     // Igual que categoria(): un jugador de partido rápido no tiene perfil público.
     const jugador = await this.prisma.jugador.findFirst({
-      where: { id, equipo: { categoria: { liga: { tipo: 'LIGA' } } } },
+      where: { id, equipo: { categoria: { liga: ligaPublica(new Date()) } } },
       select: {
         id: true,
         nombre: true,

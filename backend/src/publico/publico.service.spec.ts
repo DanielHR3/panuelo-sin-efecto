@@ -35,6 +35,18 @@ const mockPrisma = {
   partido: { count: jest.fn(), findMany: jest.fn() },
 };
 
+/** Ligas públicas: no RAPIDA y con un plan que incluya la página pública. */
+const ligaPublicaEsperada = {
+  tipo: 'LIGA',
+  suscripcion: {
+    OR: [
+      { plan: 'CORTESIA' },
+      { plan: 'COMPLETO', pruebaHasta: { gt: expect.any(Date) as Date } },
+      { plan: 'COMPLETO', pagadoHasta: { gt: expect.any(Date) as Date } },
+    ],
+  },
+};
+
 describe('PublicoService', () => {
   let service: PublicoService;
 
@@ -142,7 +154,7 @@ describe('PublicoService', () => {
       const [arg] = mockPrisma.liga.findMany.mock.calls[0] as [
         { where: { tipo: string } },
       ];
-      expect(arg.where).toEqual({ tipo: 'LIGA' });
+      expect(arg.where).toEqual(ligaPublicaEsperada);
     });
   });
 
@@ -155,7 +167,10 @@ describe('PublicoService', () => {
       const [arg] = mockPrisma.categoria.findFirst.mock.calls[0] as [
         { where: unknown },
       ];
-      expect(arg.where).toEqual({ id: 'cat-rapida', liga: { tipo: 'LIGA' } });
+      expect(arg.where).toEqual({
+        id: 'cat-rapida',
+        liga: ligaPublicaEsperada,
+      });
     });
   });
 
@@ -170,7 +185,7 @@ describe('PublicoService', () => {
       ];
       expect(arg.where).toEqual({
         id: 'j-rapido',
-        equipo: { categoria: { liga: { tipo: 'LIGA' } } },
+        equipo: { categoria: { liga: ligaPublicaEsperada } },
       });
     });
 

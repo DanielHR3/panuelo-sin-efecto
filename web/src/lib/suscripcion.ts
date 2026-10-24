@@ -21,7 +21,7 @@ export function avisoSuscripcion(s: ResumenSuscripcion): AvisoSuscripcion | null
       return {
         tono: "alerta",
         titulo: "Tu prueba gratis terminó",
-        detalle: "Tus datos siguen guardados. Muy pronto podrás elegir un plan para seguir capturando partidos.",
+        detalle: "Tus datos siguen guardados. Elige un plan en \"Mi plan\" para seguir capturando partidos.",
       };
     case "ACTIVA":
       return s.diasRestantes !== null && s.diasRestantes <= 7

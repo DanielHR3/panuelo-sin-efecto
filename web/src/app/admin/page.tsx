@@ -71,6 +71,11 @@ export default async function AdminDashboard() {
           <p className={ROTULO}>{liga.nombre}</p>
           <p className="titulo-estadio text-xl sm:text-2xl leading-tight mt-1">{aviso.titulo}</p>
           <p className="text-sm text-suave mt-1">{aviso.detalle}</p>
+          {(aviso.tono === "alerta" || liga.suscripcion?.estado === "PRUEBA") && (
+            <Link href="/admin/plan" className="inline-block mt-2 font-semibold text-panuelo-texto underline">
+              {aviso.tono === "alerta" ? "Elegir mi plan" : "Ver planes"}
+            </Link>
+          )}
         </section>
       ))}
 

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateJugadorDto } from './dto/create-jugador.dto';
 import { UpdateJugadorDto } from './dto/update-jugador.dto';
@@ -10,10 +11,12 @@ export class JugadoresService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ownership: OwnershipService,
+    private readonly plan: PlanService,
   ) {}
 
   async create(equipoId: string, dto: CreateJugadorDto, user: AuthUser) {
     await this.ownership.assertCanManageEquipo(equipoId, user);
+    await this.plan.assertPermiteEnEquipo(equipoId, 'CAPTURAR', user);
     return this.prisma.jugador.create({ data: { ...dto, equipoId } });
   }
 

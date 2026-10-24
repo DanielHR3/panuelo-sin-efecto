@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateCategoriaDto } from './dto/create-categoria.dto';
 import { UpdateCategoriaDto } from './dto/update-categoria.dto';
@@ -10,10 +11,12 @@ export class CategoriasService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ownership: OwnershipService,
+    private readonly plan: PlanService,
   ) {}
 
   async create(ligaId: string, dto: CreateCategoriaDto, user: AuthUser) {
     await this.ownership.assertCanManageLiga(ligaId, user);
+    await this.plan.assertPermite(ligaId, 'CAPTURAR', user);
     return this.prisma.categoria.create({ data: { ...dto, ligaId } });
   }
 
