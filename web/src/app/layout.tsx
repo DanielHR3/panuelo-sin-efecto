@@ -3,6 +3,7 @@ import { Barlow, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ServiceWorkerRegister } from "./sw-register";
+import { ActualizacionApp } from "./ActualizacionApp";
 
 const barlow = Barlow({
   variable: "--font-barlow",
@@ -58,6 +59,7 @@ export default function RootLayout({
       <body className={`${barlow.variable} ${barlowCondensed.variable} antialiased min-h-screen flex flex-col`}>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
+        <ActualizacionApp />
       </body>
     </html>
   );
