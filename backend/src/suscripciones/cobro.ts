@@ -51,7 +51,7 @@ export function generarReferencia(): string {
   return r;
 }
 
-export type Capacidad = 'CAPTURAR' | 'IMPORTAR' | 'PUBLICO';
+export type Capacidad = 'CAPTURAR' | 'IMPORTAR' | 'PUBLICO' | 'REGLAMENTO';
 
 /**
  * Qué deja hacer el plan de una liga. Sin suscripción (partidos rápidos) no

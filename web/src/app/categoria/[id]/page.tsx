@@ -33,6 +33,12 @@ export default async function CategoriaPage({ params }: { params: Promise<{ id: 
               </Link>
               <h1 className="titulo-estadio text-4xl sm:text-6xl leading-none">{resultado.data.nombre}</h1>
               {resultado.data.liga.esDemo && <EtiquetaDemo />}
+              <Link
+                href={`/reglamento/${resultado.data.liga.id}`}
+                className="self-start mt-1 text-sm font-semibold text-panuelo-texto underline min-h-11 inline-flex items-center"
+              >
+                Ver el reglamento de la liga
+              </Link>
             </header>
 
             <section className="flex flex-col gap-2">
