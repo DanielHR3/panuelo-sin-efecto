@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatearFecha } from "@/lib/zona";
 import { Icono } from "@/components/icons/Icono";
 import { authedFetch, getSessionUser } from "@/lib/server-api";
 import type { Partido, EstadoPartido } from "@/lib/types";
@@ -68,7 +69,7 @@ export default async function MisPartidosPage() {
                     {partido.equipoLocal?.nombre} vs {partido.equipoVisitante?.nombre}
                   </p>
                   <p className="text-xs text-suave">
-                    {new Date(partido.fechaHora).toLocaleString("es-MX", {
+                    {formatearFecha(partido.fechaHora, {
                       dateStyle: "medium",
                       timeStyle: "short",
                     })}

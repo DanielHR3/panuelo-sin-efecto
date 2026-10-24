@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatearFecha } from "@/lib/zona";
 import { authedFetch } from "@/lib/server-api";
 import { Icono, type NombreIcono } from "@/components/icons/Icono";
 import { ESTADO_BADGE, ESTADO_BADGE_BASE, ESTADO_LABEL } from "@/lib/estado-partido";
@@ -125,7 +126,7 @@ export default async function AdminDashboard() {
                       {visitante}
                     </p>
                     <p className="text-xs text-suave mt-0.5">
-                      {new Date(partido.fechaHora).toLocaleDateString("es-MX", { dateStyle: "medium" })}
+                      {formatearFecha(partido.fechaHora, { dateStyle: "medium" })}
                     </p>
                   </div>
                   <span className={`${ESTADO_BADGE_BASE} ${ESTADO_BADGE[partido.estado]}`}>

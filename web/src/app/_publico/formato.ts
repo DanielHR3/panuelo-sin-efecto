@@ -1,13 +1,11 @@
+import { formatearFecha } from "@/lib/zona";
+
 export function fechaCorta(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
+  return formatearFecha(iso, { weekday: "short", day: "numeric", month: "short" });
 }
 
 export function fechaHora(iso: string): string {
-  return new Date(iso).toLocaleString("es-MX", {
+  return formatearFecha(iso, {
     weekday: "short",
     day: "numeric",
     month: "short",
