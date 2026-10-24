@@ -9,6 +9,23 @@ import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateLigaDto } from './dto/create-liga.dto';
 import { UpdateLigaDto } from './dto/update-liga.dto';
+import {
+  estadoSuscripcion,
+  suscripcionParaLigaNueva,
+  type DatosSuscripcion,
+} from '../suscripciones/suscripcion';
+
+/** Agrega a cada liga el estado de su plan, calculado (nunca guardado). */
+function conEstado<T extends { suscripcion?: DatosSuscripcion | null }>(
+  liga: T,
+) {
+  return {
+    ...liga,
+    suscripcion: liga.suscripcion
+      ? estadoSuscripcion(liga.suscripcion, new Date())
+      : null,
+  };
+}
 
 /** HU-1.1: el formulario manda "" para "sin logo"; en la base es null. */
 function normalizarLogo(
@@ -32,10 +49,24 @@ export class LigasService {
       currentUser.rol === 'SUPERADMIN' && createLigaDto.propietarioId
         ? createLigaDto.propietarioId
         : currentUser.sub;
+    const esSuperadmin = currentUser.rol === 'SUPERADMIN';
+    // La prueba gratis es una por organizador: si alguna de sus ligas ya la
+    // tuvo, esta nace sin prueba.
+    const yaTuvoPrueba =
+      !esSuperadmin &&
+      (await this.prisma.suscripcion.count({
+        where: { pruebaHasta: { not: null }, liga: { propietarioId } },
+      })) > 0;
 
     try {
       return await this.prisma.liga.create({
         data: {
+          suscripcion: {
+            create: suscripcionParaLigaNueva(
+              { esSuperadmin, yaTuvoPrueba },
+              new Date(),
+            ),
+          },
           nombre: createLigaDto.nombre,
           propietarioId,
           logoUrl: normalizarLogo(createLigaDto.logoUrl) ?? null,
@@ -61,20 +92,21 @@ export class LigasService {
    * contenedores RAPIDA de los partidos rápidos.
    */
   async findAll(user: AuthUser) {
-    return this.prisma.liga.findMany({
+    const ligas = await this.prisma.liga.findMany({
       where: this.ownership.filtroLigasVisibles(user),
-      include: { categorias: true },
+      include: { categorias: true, suscripcion: true },
     });
+    return ligas.map(conEstado);
   }
 
   async findOne(id: string, user: AuthUser) {
     await this.ownership.assertCanManageLiga(id, user);
     const liga = await this.prisma.liga.findUnique({
       where: { id },
-      include: { categorias: true },
+      include: { categorias: true, suscripcion: true },
     });
     if (!liga) throw new NotFoundException(`Liga con ID ${id} no encontrada`);
-    return liga;
+    return conEstado(liga);
   }
 
   async update(id: string, dto: UpdateLigaDto, user: AuthUser) {

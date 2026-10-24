@@ -24,6 +24,7 @@ const mockPrisma = {
     create: jest.fn(),
     findUnique: jest.fn(),
     findMany: jest.fn(),
+    findFirst: jest.fn(),
   },
 };
 const mockOwnership = { assertCanManageLiga: jest.fn() };
@@ -89,6 +90,16 @@ describe('UsuariosService', () => {
           superadmin,
         ),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('findByEmailWithHash', () => {
+    it('busca el email sin distinguir mayúsculas ni espacios', async () => {
+      mockPrisma.usuario.findFirst.mockResolvedValueOnce(null);
+      await service.findByEmailWithHash(' Laura@Liga.MX ');
+      expect(mockPrisma.usuario.findFirst).toHaveBeenCalledWith({
+        where: { email: { equals: 'Laura@Liga.MX', mode: 'insensitive' } },
+      });
     });
   });
 

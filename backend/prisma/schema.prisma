@@ -57,6 +57,7 @@ model Liga {
   propietarioId String
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
   arbitros      Usuario[]   @relation("ArbitrosLiga")
+  suscripcion   Suscripcion?
   
   categorias    Categoria[]
   
@@ -231,4 +232,18 @@ model DiscrepanciaEvento {
   // colarse igual (p. ej. datos ya duplicados de antes de este fix).
   @@unique([eventoAId, eventoBId])
   @@index([partidoId, estado])
+}
+
+// Plan de uso de una liga (ligas en autoservicio). Una por liga; las ligas
+// RAPIDA no tienen. El estado (PRUEBA, ACTIVA, VENCIDA, CORTESIA) se calcula
+// con las fechas en `suscripcion.ts`, nunca se guarda.
+model Suscripcion {
+  id          String    @id @default(uuid())
+  ligaId      String    @unique
+  liga        Liga      @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  plan        String    // ARBITRAJE, COMPLETO, CORTESIA
+  pruebaHasta DateTime?
+  pagadoHasta DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

@@ -77,6 +77,7 @@ const PUBLICAS_PERMITIDAS = [
   'AppController.getHello', // GET / (health)
   'AuthController.login', // POST /auth/login
   'RapidoController.crear', // POST /rapido/partidos
+  'RegistroController.registrar', // POST /registro (alta de organizador)
   'PublicoController.resumen', // GET /publico/resumen
   'PublicoController.categoria', // GET /publico/categorias/:id
   'PublicoController.jugador', // GET /publico/jugadores/:id

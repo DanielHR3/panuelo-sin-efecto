@@ -83,7 +83,11 @@ export class UsuariosService {
 
   /** Incluye el passwordHash: solo para el flujo de login. */
   findByEmailWithHash(email: string) {
-    return this.prisma.usuario.findUnique({ where: { email } });
+    // Sin distinguir mayúsculas: el registro guarda el email en minúsculas y
+    // la gente lo teclea como sea al iniciar sesión.
+    return this.prisma.usuario.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+    });
   }
 
   /**
