@@ -72,6 +72,28 @@ export async function eliminarLiga(
   revalidatePath("/admin/ligas");
 }
 
+/**
+ * SUPERADMIN: borra la liga con todo su contenido. El nombre escrito
+ * confirma (el backend lo vuelve a comparar) y la casilla decide si también
+ * se borra la cuenta del organizador.
+ */
+export async function eliminarLigaCompleta(
+  id: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const params = new URLSearchParams({
+    confirmar: readString(formData, "confirmar"),
+    borrarCuenta: String(readCheckbox(formData, "borrarCuenta")),
+  });
+  try {
+    await authedFetch(`/ligas/${id}?${params}`, { method: "DELETE" });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "No se pudo eliminar la liga" };
+  }
+  revalidatePath("/admin", "layout");
+}
+
 export async function crearCategoria(
   ligaId: string,
   _prev: ActionState,

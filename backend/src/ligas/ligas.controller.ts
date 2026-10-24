@@ -6,8 +6,14 @@ import {
   Delete,
   Body,
   Param,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { LigasService } from './ligas.service';
 import { CreateLigaDto } from './dto/create-liga.dto';
 import { UpdateLigaDto } from './dto/update-liga.dto';
@@ -67,8 +73,30 @@ export class LigasController {
   @Delete(':id')
   @Roles('SUPERADMIN', 'LIGA_ADMIN')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Elimina una liga (debe estar sin categorías)' })
-  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.ligasService.remove(id, user);
+  @ApiQuery({
+    name: 'confirmar',
+    required: false,
+    description: 'SUPERADMIN: nombre exacto de la liga',
+  })
+  @ApiQuery({
+    name: 'borrarCuenta',
+    required: false,
+    description:
+      'SUPERADMIN: "true" para borrar también la cuenta del organizador',
+  })
+  @ApiOperation({
+    summary:
+      'Elimina una liga. SUPERADMIN: con todo su contenido (y opcionalmente la cuenta del organizador), confirmando con el nombre. Organizador: solo si está vacía',
+  })
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('confirmar') confirmar?: string,
+    @Query('borrarCuenta') borrarCuenta?: string,
+  ) {
+    return this.ligasService.remove(id, user, {
+      confirmar,
+      borrarCuenta: borrarCuenta === 'true',
+    });
   }
 }

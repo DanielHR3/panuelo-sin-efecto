@@ -19,6 +19,8 @@ const mockPrisma = {
     delete: jest.fn(),
   },
   suscripcion: { count: jest.fn() },
+  pruebaUsada: { count: jest.fn().mockResolvedValue(0) },
+  $transaction: jest.fn(),
 };
 const mockOwnership = {
   assertCanManageLiga: jest.fn(),
@@ -89,6 +91,21 @@ describe('LigasService', () => {
           pruebaHasta: { not: null },
           liga: { propietarioId: 'user-1' },
         },
+      });
+    });
+
+    it('si su correo ya usó la prueba en una liga borrada, la liga nueva nace sin prueba', async () => {
+      mockPrisma.pruebaUsada.count.mockResolvedValueOnce(1);
+      mockPrisma.liga.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: 'l4', ...data }),
+      );
+      await service.create({ nombre: 'Liga nueva' }, arbitro);
+      const [[arg]] = mockPrisma.liga.create.mock.calls as [
+        [{ data: { suscripcion: { create: { pruebaHasta: Date | null } } } }],
+      ];
+      expect(arg.data.suscripcion.create.pruebaHasta).toBeNull();
+      expect(mockPrisma.pruebaUsada.count).toHaveBeenCalledWith({
+        where: { email: arbitro.email.toLowerCase() },
       });
     });
 
@@ -239,12 +256,16 @@ describe('LigasService', () => {
       expect(ligas[1].suscripcion).toBeNull();
     });
 
-    it('un SUPERADMIN lista todas las ligas', async () => {
+    it('un SUPERADMIN lista todas las ligas, con nombre y correo del organizador', async () => {
       mockPrisma.liga.findMany.mockResolvedValueOnce([]);
       await service.findAll(superadmin);
       expect(mockPrisma.liga.findMany).toHaveBeenCalledWith({
         where: {},
-        include: { categorias: true, suscripcion: true },
+        include: {
+          categorias: true,
+          suscripcion: true,
+          propietario: { select: { nombre: true, email: true } },
+        },
       });
     });
   });
@@ -330,6 +351,49 @@ describe('LigasService', () => {
       await expect(service.remove('l1', arbitro)).rejects.toBeInstanceOf(
         BadRequestException,
       );
+    });
+  });
+
+  describe('remove (SUPERADMIN)', () => {
+    const superadmin: AuthUser = {
+      sub: 's1',
+      email: 's@x.mx',
+      rol: 'SUPERADMIN',
+    };
+
+    it('exige escribir el nombre exacto de la liga y no borra nada si no coincide', async () => {
+      mockPrisma.liga.findUnique.mockResolvedValue({
+        nombre: 'Liga del Valle',
+      });
+      await expect(
+        service.remove('l1', superadmin, { confirmar: 'liga del valle' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.remove('l1', superadmin)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('con el nombre correcto borra todo en una transacción y devuelve el resumen', async () => {
+      mockPrisma.liga.findUnique.mockResolvedValue({
+        nombre: 'Liga del Valle',
+      });
+      mockPrisma.$transaction.mockResolvedValue({ liga: 'Liga del Valle' });
+      await expect(
+        service.remove('l1', superadmin, { confirmar: ' Liga del Valle ' }),
+      ).resolves.toEqual({
+        id: 'l1',
+        deleted: true,
+        resumen: { liga: 'Liga del Valle' },
+      });
+      expect(mockPrisma.liga.delete).not.toHaveBeenCalled();
+    });
+
+    it('404 si la liga no existe', async () => {
+      mockPrisma.liga.findUnique.mockResolvedValue(null);
+      await expect(
+        service.remove('l1', superadmin, { confirmar: 'x' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

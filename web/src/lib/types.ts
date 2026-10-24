@@ -44,6 +44,8 @@ export interface Liga {
   /** HU-1.1: la PWA ofrece el evento INTERCEPCION al árbitro. */
   registraIntercepciones: boolean;
   propietarioId: string;
+  /** Solo para el SUPERADMIN en GET /ligas. */
+  propietario?: { nombre: string; email: string };
   categorias: Categoria[];
   createdAt: string;
   updatedAt: string;

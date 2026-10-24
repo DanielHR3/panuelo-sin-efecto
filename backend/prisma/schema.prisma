@@ -290,3 +290,31 @@ model ReglamentoLiga {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Bitácora (quién hizo qué): una fila por cada cambio hecho por la API
+// (POST, PUT, PATCH, DELETE), la escribe BitacoraInterceptor. Sin FK al
+// usuario a propósito: guarda una copia de su email y rol para que el
+// registro sobreviva aunque la cuenta se borre. El cuerpo va depurado
+// (sin contraseñas, tokens ni archivos).
+model Bitacora {
+  id           String   @id @default(uuid())
+  fecha        DateTime @default(now())
+  usuarioId    String?
+  usuarioEmail String?
+  rol          String?
+  metodo       String
+  ruta         String   // patrón de la ruta, p. ej. /ligas/:id
+  params       Json?
+  detalle      Json?
+  estado       Int      // código HTTP de la respuesta
+
+  @@index([fecha])
+  @@index([usuarioEmail, fecha])
+}
+
+// Correos que ya usaron su mes gratis y cuya cuenta se borró: si vuelven a
+// registrarse, su liga nace sin prueba (la prueba es una por organizador).
+model PruebaUsada {
+  email String   @id
+  fecha DateTime @default(now())
+}

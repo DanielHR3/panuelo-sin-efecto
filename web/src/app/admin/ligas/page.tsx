@@ -1,10 +1,11 @@
-import { authedFetch } from "@/lib/server-api";
+import { authedFetch, getSessionUser } from "@/lib/server-api";
 import type { Liga } from "@/lib/types";
 import { ActionForm, SubmitButton } from "../_components/ActionForm";
 import { DeleteButton } from "../_components/DeleteButton";
 import { Vacio } from "../_components/Vacio";
 import { Icono } from "@/components/icons/Icono";
 import {
+  BOTON_PELIGRO,
   BOTON_PRIMARIO,
   BOTON_QUITAR,
   BOTON_SECUNDARIO,
@@ -17,6 +18,7 @@ import {
   crearLiga,
   crearCategoria,
   eliminarLiga,
+  eliminarLigaCompleta,
   eliminarCategoria,
 } from "./actions";
 
@@ -53,7 +55,8 @@ function ConfigLigaFields({
 }
 
 export default async function LigasPage() {
-  const ligas = await authedFetch<Liga[]>("/ligas");
+  const [ligas, yo] = await Promise.all([authedFetch<Liga[]>("/ligas"), getSessionUser()]);
+  const esSuperadmin = yo?.rol === "SUPERADMIN";
 
   return (
     <div className="space-y-6">
@@ -99,7 +102,7 @@ export default async function LigasPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {ligas.map((liga) => (
-            <LigaCard key={liga.id} liga={liga} />
+            <LigaCard key={liga.id} liga={liga} esSuperadmin={esSuperadmin} />
           ))}
         </div>
       )}
@@ -107,7 +110,7 @@ export default async function LigasPage() {
   );
 }
 
-function LigaCard({ liga }: { liga: Liga }) {
+function LigaCard({ liga, esSuperadmin }: { liga: Liga; esSuperadmin: boolean }) {
   return (
     <div className="panel p-5 sm:p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -126,12 +129,19 @@ function LigaCard({ liga }: { liga: Liga }) {
               {liga.registraMvp ? "MVP obligatorio" : "Sin MVP"} ·{" "}
               {liga.registraIntercepciones ? "Registra intercepciones" : "Sin intercepciones"}
             </p>
+            {liga.propietario && (
+              <p className="text-xs text-suave break-all">
+                {liga.propietario.nombre} · {liga.propietario.email}
+              </p>
+            )}
           </div>
         </div>
-        <DeleteButton
-          action={eliminarLiga.bind(null, liga.id)}
-          confirmMessage={`¿Eliminar la liga "${liga.nombre}"? Debe no tener categorías.`}
-        />
+        {!esSuperadmin && (
+          <DeleteButton
+            action={eliminarLiga.bind(null, liga.id)}
+            confirmMessage={`¿Eliminar la liga "${liga.nombre}"? Debe no tener categorías.`}
+          />
+        )}
       </div>
 
       <details className="group">
@@ -199,6 +209,7 @@ function LigaCard({ liga }: { liga: Liga }) {
           + Añadir
         </SubmitButton>
       </ActionForm>
+      {esSuperadmin && <EliminarLigaCompleta liga={liga} />}
     </div>
   );
 }
@@ -208,5 +219,50 @@ function EmptyState() {
     <Vacio icono="trofeo" texto="Todavía no hay ligas.">
       Crea la primera con el formulario de arriba.
     </Vacio>
+  );
+}
+
+/**
+ * SUPERADMIN: borrar la liga con todo (categorías, equipos, jugadores,
+ * partidos, pagos) escribiendo su nombre exacto, y opcionalmente la cuenta
+ * del organizador para que pueda volver a registrarse con ese correo.
+ */
+function EliminarLigaCompleta({ liga }: { liga: Liga }) {
+  return (
+    <details className="border-t border-texto/10 pt-3">
+      <summary className="cursor-pointer text-sm font-semibold text-peligro select-none">
+        Eliminar liga…
+      </summary>
+      <ActionForm
+        action={eliminarLigaCompleta.bind(null, liga.id)}
+        className="mt-3 flex flex-col gap-3"
+      >
+        <p className="text-sm">
+          Se borran <strong>todas</strong> sus categorías, equipos, jugadores, partidos, pagos y
+          reglamento. No se puede deshacer; queda anotado en la bitácora.
+        </p>
+        <label className={ETIQUETA}>
+          Escribe el nombre de la liga para confirmar
+          <input
+            name="confirmar"
+            required
+            autoComplete="off"
+            placeholder={liga.nombre}
+            className={INPUT}
+          />
+        </label>
+        <label className="flex items-start gap-2 text-sm font-medium">
+          <input type="checkbox" name="borrarCuenta" className="mt-0.5 w-4 h-4 accent-panuelo-texto" />
+          <span>
+            Borrar también la cuenta del organizador
+            {liga.propietario ? ` (${liga.propietario.email})` : ""}. Podrá registrarse de nuevo con
+            ese correo, sin otro mes gratis.
+          </span>
+        </label>
+        <SubmitButton pendingLabel="Eliminando…" className={`${BOTON_PELIGRO} px-5 py-3 min-h-12`}>
+          Eliminar liga definitivamente
+        </SubmitButton>
+      </ActionForm>
+    </details>
   );
 }

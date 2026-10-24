@@ -23,6 +23,7 @@ import { EventosModule } from './eventos/eventos.module';
 import { DiscrepanciasModule } from './discrepancias/discrepancias.module';
 import { PublicoModule } from './publico/publico.module';
 import { RapidoModule } from './rapido/rapido.module';
+import { BitacoraModule } from './bitacora/bitacora.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { RapidoModule } from './rapido/rapido.module';
     DiscrepanciasModule,
     PublicoModule,
     RapidoModule,
+    BitacoraModule,
   ],
   controllers: [AppController],
   providers: [
