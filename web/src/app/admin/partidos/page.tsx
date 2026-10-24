@@ -294,7 +294,7 @@ function PartidoCard({
           )}
           <DeleteButton
             action={eliminarPartido.bind(null, partido.id)}
-            confirmMessage="¿Eliminar este partido?"
+            confirmMessage="¿Eliminar este partido? También se borran sus jugadas y sus árbitros asignados."
           />
         </div>
       </div>

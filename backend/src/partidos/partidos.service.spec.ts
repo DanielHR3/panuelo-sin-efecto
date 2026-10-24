@@ -20,6 +20,9 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  eventoPartido: { deleteMany: jest.fn() },
+  discrepanciaEvento: { deleteMany: jest.fn() },
+  $transaction: jest.fn(),
   equipo: { findMany: jest.fn() },
   usuario: { findUnique: jest.fn() },
   jugador: { findUnique: jest.fn() },
@@ -27,6 +30,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     upsert: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn(),
   },
 };
 const mockOwnership = {
@@ -476,6 +480,48 @@ describe('PartidosService', () => {
       await expect(
         service.setMvp('p1', { jugadorId: 'j1' }, superadmin),
       ).resolves.toBeDefined();
+    });
+  });
+
+  describe('remove', () => {
+    it('borra el partido junto con sus discrepancias, eventos y asignaciones, en ese orden y en una transacción', async () => {
+      mockPrisma.discrepanciaEvento.deleteMany.mockReturnValue('q-disc');
+      mockPrisma.eventoPartido.deleteMany.mockReturnValue('q-eventos');
+      mockPrisma.asignacionArbitral.deleteMany.mockReturnValue('q-asig');
+      mockPrisma.partido.delete.mockReturnValue('q-partido');
+
+      await expect(service.remove('p1', user)).resolves.toEqual({
+        id: 'p1',
+        deleted: true,
+      });
+
+      expect(mockOwnership.assertCanManagePartido).toHaveBeenCalledWith(
+        'p1',
+        user,
+      );
+      for (const m of [
+        mockPrisma.discrepanciaEvento.deleteMany,
+        mockPrisma.eventoPartido.deleteMany,
+        mockPrisma.asignacionArbitral.deleteMany,
+      ]) {
+        expect(m).toHaveBeenCalledWith({ where: { partidoId: 'p1' } });
+      }
+      expect(mockPrisma.$transaction).toHaveBeenCalledWith([
+        'q-disc',
+        'q-eventos',
+        'q-asig',
+        'q-partido',
+      ]);
+    });
+
+    it('no borra nada si el usuario no puede administrar el partido', async () => {
+      mockOwnership.assertCanManagePartido.mockRejectedValueOnce(
+        new ForbiddenException(),
+      );
+      await expect(service.remove('p1', user)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });

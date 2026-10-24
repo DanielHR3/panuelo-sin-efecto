@@ -158,7 +158,14 @@ export class PartidosService {
 
   async remove(id: string, user: AuthUser) {
     await this.ownership.assertCanManagePartido(id, user);
-    await this.prisma.partido.delete({ where: { id } });
+    // Las FK son RESTRICT: un partido con árbitros asignados o jugadas no se
+    // podía borrar. Se va con toda su Caja Negra, de las hojas a la raíz.
+    await this.prisma.$transaction([
+      this.prisma.discrepanciaEvento.deleteMany({ where: { partidoId: id } }),
+      this.prisma.eventoPartido.deleteMany({ where: { partidoId: id } }),
+      this.prisma.asignacionArbitral.deleteMany({ where: { partidoId: id } }),
+      this.prisma.partido.delete({ where: { id } }),
+    ]);
     return { id, deleted: true };
   }
 
