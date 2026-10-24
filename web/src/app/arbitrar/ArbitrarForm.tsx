@@ -36,13 +36,14 @@ export function ArbitrarForm() {
       const data = (await res.json()) as { partidoId?: string; message?: string };
       if (!res.ok || !data.partidoId) {
         setError(data.message ?? "No se pudo crear el partido");
+        setEnviando(false);
         return;
       }
+      // Sin router.refresh() (ver LoginForm) y sin reactivar el botón: se
+      // queda deshabilitado hasta que cambia la página.
       router.push(`/partido/${data.partidoId}`);
-      router.refresh();
     } catch {
       setError("Sin conexión con el servidor. Si acaba de despertar, intenta de nuevo en un momento.");
-    } finally {
       setEnviando(false);
     }
   };
