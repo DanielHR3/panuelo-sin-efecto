@@ -64,6 +64,21 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      <section className="border-b border-texto/10 bg-panel">
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+          <p className="font-semibold">
+            ¿Organizas una liga?{" "}
+            <span className="text-suave font-normal">Tu marcador, tabla y estadísticas, gratis el primer mes.</span>
+          </p>
+          <Link
+            href="/registro"
+            className="boton-panuelo px-5 py-3 min-h-12 text-center shrink-0 active:scale-95 transition-transform"
+          >
+            Registra tu liga
+          </Link>
+        </div>
+      </section>
+
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-12">
         {!resultado.ok ? (
           <Despertando />

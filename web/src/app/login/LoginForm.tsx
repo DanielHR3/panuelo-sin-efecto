@@ -106,7 +106,10 @@ export default function LoginForm() {
         </p>
         <p>
           <span className="font-semibold text-texto">Administrador:</span> entras al
-          panel para cargar ligas, equipos, jugadores, árbitros y partidos.
+          panel para cargar ligas, equipos, jugadores, árbitros y partidos.{" "}
+          <Link href="/registro" className="font-semibold text-panuelo-texto hover:underline">
+            ¿Organizas una liga? Regístrala gratis un mes.
+          </Link>
         </p>
         <Link href="/" className="font-semibold hover:underline mt-1">
           ← Ver marcadores públicos

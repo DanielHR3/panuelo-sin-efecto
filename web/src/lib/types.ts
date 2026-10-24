@@ -23,9 +23,19 @@ export interface Categoria {
   updatedAt: string;
 }
 
+/** Plan de una liga calculado por la API (GET /ligas). */
+export interface ResumenSuscripcion {
+  estado: "PRUEBA" | "ACTIVA" | "VENCIDA" | "CORTESIA";
+  plan: string;
+  vence: string | null;
+  diasRestantes: number | null;
+}
+
 export interface Liga {
   id: string;
   nombre: string;
+  /** null en ligas de partidos rápidos; ausente en respuestas que no la traen. */
+  suscripcion?: ResumenSuscripcion | null;
   tipo: "LIGA" | "RAPIDA";
   /** HU-1.1: URL pública del logo, o null si la liga no tiene. */
   logoUrl: string | null;

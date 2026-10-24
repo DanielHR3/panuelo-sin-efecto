@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { API_URL } from "@/lib/api";
-import { SESSION_COOKIE, secondsUntilExpiry } from "@/lib/session";
+import { guardarSesion, mensajeDeError } from "../sesion";
 
 interface LoginBody {
   email?: string;
@@ -40,19 +40,9 @@ export async function POST(request: Request) {
   };
 
   if (!backendRes.ok || !data.access_token) {
-    const message = Array.isArray(data.message)
-      ? data.message.join(", ")
-      : (data.message ?? "No se pudo iniciar sesión");
+    const message = mensajeDeError(data.message, "No se pudo iniciar sesión");
     return NextResponse.json({ message }, { status: backendRes.status || 401 });
   }
 
-  const response = NextResponse.json({ usuario: data.usuario });
-  response.cookies.set(SESSION_COOKIE, data.access_token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: secondsUntilExpiry(data.access_token) ?? 60 * 60 * 24 * 7,
-  });
-  return response;
+  return guardarSesion(NextResponse.json({ usuario: data.usuario }), data.access_token);
 }
