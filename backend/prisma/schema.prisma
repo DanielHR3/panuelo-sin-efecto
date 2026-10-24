@@ -59,6 +59,7 @@ model Liga {
   arbitros      Usuario[]   @relation("ArbitrosLiga")
   suscripcion   Suscripcion?
   pagos         Pago[]
+  reglamento    ReglamentoLiga?
   
   categorias    Categoria[]
   
@@ -275,4 +276,17 @@ model Pago {
 
   @@index([estado, createdAt])
   @@index([ligaId, createdAt])
+}
+
+// Reglamento propio de una liga (PDF, máx. 10 MB; plan Completo). Si no hay,
+// la app muestra el resumen del reglamento IFAF de Flag Football. En la base
+// porque Render no tiene disco persistente.
+model ReglamentoLiga {
+  id        String   @id @default(uuid())
+  ligaId    String   @unique
+  liga      Liga     @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  archivo   Bytes
+  nombre    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

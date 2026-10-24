@@ -492,6 +492,16 @@ export default function ScoreboardClient({
           </h1>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {/* Se abre en otra pestaña: el marcador (cola offline, cronómetro) sigue vivo. */}
+          <a
+            href={liga && liga.tipo !== "RAPIDA" ? `/reglamento/${liga.id}` : "/reglamento"}
+            target="_blank"
+            rel="noopener"
+            className={BOTON_ICONO}
+            aria-label="Reglamento"
+          >
+            <Icono nombre="reglamento" />
+          </a>
           <button
             onClick={() => { vibrate(); screenLock.lock(); }}
             className={BOTON_ICONO}

@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { RegistroModule } from './registro/registro.module';
 import { ImportacionModule } from './importacion/importacion.module';
 import { PagosModule } from './pagos/pagos.module';
+import { ReglamentoModule } from './reglamento/reglamento.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { LigasModule } from './ligas/ligas.module';
@@ -34,6 +35,7 @@ import { RapidoModule } from './rapido/rapido.module';
     RegistroModule,
     ImportacionModule,
     PagosModule,
+    ReglamentoModule,
     LigasModule,
     UsuariosModule,
     CategoriasModule,

@@ -12,6 +12,10 @@ const MENSAJES: Record<Capacidad, (s: ResumenSuscripcion) => string> = {
       ? 'Tu liga no tiene un plan activo. Elige un plan en "Mi plan" para importar.'
       : 'Tu plan Arbitraje no incluye importar desde Excel. Cambia al plan Completo.',
   PUBLICO: () => 'Tu plan no incluye página pública.',
+  REGLAMENTO: (s) =>
+    s.estado === 'VENCIDA'
+      ? 'Tu liga no tiene un plan activo. Elige un plan en "Mi plan" para subir tu reglamento.'
+      : 'Tu plan Arbitraje no incluye reglamento propio. Cambia al plan Completo.',
 };
 
 /**

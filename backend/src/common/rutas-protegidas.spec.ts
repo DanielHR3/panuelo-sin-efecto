@@ -78,6 +78,8 @@ const PUBLICAS_PERMITIDAS = [
   'AuthController.login', // POST /auth/login
   'RapidoController.crear', // POST /rapido/partidos
   'RegistroController.registrar', // POST /registro (alta de organizador)
+  'ReglamentoController.info', // GET /publico/ligas/:id/reglamento
+  'ReglamentoController.pdf', // GET /publico/ligas/:id/reglamento.pdf
   'PublicoController.resumen', // GET /publico/resumen
   'PublicoController.categoria', // GET /publico/categorias/:id
   'PublicoController.jugador', // GET /publico/jugadores/:id
