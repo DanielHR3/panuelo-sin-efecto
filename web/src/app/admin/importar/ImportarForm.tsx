@@ -64,7 +64,6 @@ export function ImportarForm({ ligas }: { ligas: { id: string; nombre: string }[
           <p className="font-semibold">1. Descarga la plantilla</p>
           <p className="text-sm text-suave">Trae las hojas Equipos, Jugadores y Calendario, con instrucciones y un ejemplo.</p>
         </div>
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- descarga un archivo de una ruta de API, no navega a una página */}
         <a href="/api/importar/plantilla" download className={`${BOTON_SECUNDARIO} px-5 py-3 min-h-12 inline-flex items-center justify-center gap-2 shrink-0`}>
           <Icono nombre="tabla" />
           Descargar plantilla
