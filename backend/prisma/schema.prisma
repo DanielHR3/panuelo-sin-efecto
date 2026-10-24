@@ -58,6 +58,7 @@ model Liga {
   propietario   Usuario     @relation("PropietarioLiga", fields: [propietarioId], references: [id])
   arbitros      Usuario[]   @relation("ArbitrosLiga")
   suscripcion   Suscripcion?
+  pagos         Pago[]
   
   categorias    Categoria[]
   
@@ -246,4 +247,32 @@ model Suscripcion {
   pagadoHasta DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// Pago por SPEI de una liga: el organizador transfiere con su referencia y
+// sube el comprobante; el SUPERADMIN lo confirma o lo rechaza a mano. Al
+// confirmarse, extiende `Suscripcion.pagadoHasta` y fija el plan pagado.
+model Pago {
+  id                String    @id @default(uuid())
+  ligaId            String
+  liga              Liga      @relation(fields: [ligaId], references: [id], onDelete: Cascade)
+  plan              String    // ARBITRAJE, COMPLETO
+  periodo           String    // MENSUAL, ANUAL
+  montoCentavos     Int
+  referencia        String    @unique
+  estado            String    @default("PENDIENTE") // PENDIENTE, CONFIRMADO, RECHAZADO
+  motivoRechazo     String?
+  // Comprobante (foto o PDF, máx. 2 MB). Va en la base porque Render no
+  // tiene disco persistente.
+  comprobante       Bytes?
+  comprobanteTipo   String?
+  comprobanteNombre String?
+  creadoPorId       String
+  resueltoPorId     String?
+  resueltoAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([estado, createdAt])
+  @@index([ligaId, createdAt])
 }

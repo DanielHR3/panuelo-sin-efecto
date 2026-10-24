@@ -103,6 +103,12 @@ export default function AdminShell({
           <SidebarLink href="/admin/equipos" icon="escudo" label="Equipos y Rosters" activo={activo("/admin/equipos")} onNavigate={cerrarNav} />
           <SidebarLink href="/admin/partidos" icon="campo" label="Gestión de Partidos" activo={activo("/admin/partidos")} onNavigate={cerrarNav} />
           <SidebarLink href="/admin/importar" icon="tabla" label="Importar Excel" activo={activo("/admin/importar")} onNavigate={cerrarNav} />
+          {rol === "LIGA_ADMIN" && (
+            <SidebarLink href="/admin/plan" icon="trofeo" label="Mi plan" activo={activo("/admin/plan")} onNavigate={cerrarNav} />
+          )}
+          {rol === "SUPERADMIN" && (
+            <SidebarLink href="/admin/pagos" icon="grafica" label="Pagos" activo={activo("/admin/pagos")} onNavigate={cerrarNav} />
+          )}
           {(rol === "SUPERADMIN" || rol === "LIGA_ADMIN") && (
             <SidebarLink href="/admin/arbitros" icon="silbato" label="Árbitros" activo={activo("/admin/arbitros")} onNavigate={cerrarNav} />
           )}

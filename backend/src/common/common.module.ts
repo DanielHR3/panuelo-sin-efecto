@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { OwnershipService } from './ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 
 /**
  * Utilidades transversales disponibles en toda la app sin re-importar.
@@ -8,7 +9,7 @@ import { OwnershipService } from './ownership.service';
  */
 @Global()
 @Module({
-  providers: [OwnershipService],
-  exports: [OwnershipService],
+  providers: [OwnershipService, PlanService],
+  exports: [OwnershipService, PlanService],
 })
 export class CommonModule {}

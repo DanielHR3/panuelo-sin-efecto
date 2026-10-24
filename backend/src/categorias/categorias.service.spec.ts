@@ -3,6 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CategoriasService } from './categorias.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 
 const user: AuthUser = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' };
@@ -31,6 +32,14 @@ describe('CategoriasService', () => {
         CategoriasService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: OwnershipService, useValue: mockOwnership },
+        {
+          provide: PlanService,
+          useValue: {
+            assertPermite: jest.fn(),
+            assertPermiteEnCategoria: jest.fn(),
+            assertPermiteEnEquipo: jest.fn(),
+          },
+        },
       ],
     }).compile();
     service = module.get(CategoriasService);

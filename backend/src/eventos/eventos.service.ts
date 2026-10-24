@@ -7,6 +7,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { RegistrarEventoDto } from './dto/registrar-evento.dto';
 import {
@@ -26,6 +27,7 @@ export class EventosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ownership: OwnershipService,
+    private readonly plan: PlanService,
   ) {}
 
   async registrar(
@@ -42,9 +44,12 @@ export class EventosService {
     const partido = await this.prisma.partido.findUnique({
       where: { id: partidoId },
       select: {
+        estado: true,
         equipoLocalId: true,
         equipoVisitanteId: true,
-        categoria: { select: { liga: { select: { propietarioId: true } } } },
+        categoria: {
+          select: { liga: { select: { id: true, propietarioId: true } } },
+        },
         asignaciones: { select: { arbitroId: true } },
       },
     });
@@ -52,6 +57,16 @@ export class EventosService {
       throw new NotFoundException(`Partido ${partidoId} no encontrado`);
 
     this.assertPuedeRegistrar(partido, arbitro);
+
+    // Con la liga vencida no se inicia un partido programado; uno que ya va
+    // en curso siempre se puede terminar (no se corta a media jugada).
+    if (dto.tipoEvento === 'INICIO_MITAD' && partido.estado === 'PROGRAMADO') {
+      await this.plan.assertPermite(
+        partido.categoria.liga.id,
+        'CAPTURAR',
+        arbitro,
+      );
+    }
 
     // Idempotencia: si el cliente ya envió este clientEventId, se devuelve el
     // evento existente en vez de duplicarlo (reintento de la cola offline).

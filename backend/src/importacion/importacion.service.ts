@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { leerLibro, normalizar } from './leer-libro';
 import { planificarImportacion, type PlanImportacion } from './planificar';
@@ -21,6 +22,7 @@ export class ImportacionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ownership: OwnershipService,
+    private readonly plan: PlanService,
   ) {}
 
   async importar(
@@ -30,6 +32,7 @@ export class ImportacionService {
     user: AuthUser,
   ): Promise<ResultadoImportacion> {
     await this.ownership.assertCanManageLiga(ligaId, user);
+    await this.plan.assertPermite(ligaId, 'IMPORTAR', user);
 
     const libro = await leerLibro(archivo);
     const existentes = await this.prisma.categoria.findMany({

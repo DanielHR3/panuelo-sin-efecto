@@ -7,6 +7,7 @@ import {
 import { EventosService } from './eventos.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from '../common/ownership.service';
+import { PlanService } from '../suscripciones/plan.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 
 const LOCAL_ID = 'equipo-local';
@@ -35,10 +36,12 @@ function partidoBase(estado: string) {
     estado,
     equipoLocalId: LOCAL_ID,
     equipoVisitanteId: VISITA_ID,
-    categoria: { liga: { propietarioId: PROPIETARIO_ID } },
+    categoria: { liga: { id: 'liga-1', propietarioId: PROPIETARIO_ID } },
     asignaciones: [{ arbitroId: 'ref-1' }],
   };
 }
+
+const mockPlan = { assertPermite: jest.fn() };
 
 const mockTx = {
   $executeRaw: jest.fn(),
@@ -88,6 +91,7 @@ describe('EventosService', () => {
         EventosService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: OwnershipService, useValue: mockOwnership },
+        { provide: PlanService, useValue: mockPlan },
       ],
     }).compile();
     service = module.get(EventosService);
@@ -174,6 +178,37 @@ describe('EventosService', () => {
     const [[arg]] = mockTx.partido.update.mock.calls as unknown[][];
     const { data } = arg as { data: { estado?: string } };
     expect(data.estado).toBe('EN_CURSO');
+  });
+
+  it('con la liga sin plan activo no se inicia un partido programado', async () => {
+    mockPlan.assertPermite.mockRejectedValueOnce(
+      new ForbiddenException('sin plan'),
+    );
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(
+      partidoBase('PROGRAMADO'),
+    );
+    await expect(
+      service.registrar('p1', { tipoEvento: 'INICIO_MITAD' }, arbitroAsignado),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(mockPlan.assertPermite).toHaveBeenCalledWith(
+      'liga-1',
+      'CAPTURAR',
+      arbitroAsignado,
+    );
+    expect(mockTx.eventoPartido.create).not.toHaveBeenCalled();
+  });
+
+  it('un partido en curso se sigue capturando sin consultar el plan', async () => {
+    mockPrisma.partido.findUnique.mockResolvedValueOnce(
+      partidoBase('EN_CURSO'),
+    );
+    mockTx.partido.findUniqueOrThrow.mockResolvedValueOnce({
+      estado: 'EN_CURSO',
+    });
+    await service
+      .registrar('p1', { tipoEvento: 'TIMEOUT' }, arbitroAsignado)
+      .catch(() => null);
+    expect(mockPlan.assertPermite).not.toHaveBeenCalled();
   });
 
   it('rechaza eventos cuando el partido ya FINALIZADO', async () => {
