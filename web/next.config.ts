@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { CABECERAS_SEGURIDAD } from "./src/lib/cabeceras-seguridad";
 
 /**
  * Versión publicada: el commit que Vercel desplegó (local: "dev"). Queda fija
@@ -11,6 +12,9 @@ const VERSION = process.env.VERCEL_GIT_COMMIT_SHA ?? "dev";
 
 const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_VERSION: VERSION },
+  async headers() {
+    return [{ source: "/:path*", headers: CABECERAS_SEGURIDAD }];
+  },
 };
 
 export default nextConfig;
