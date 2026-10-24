@@ -8,6 +8,7 @@ import { CommonModule } from './common/common.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AuthModule } from './auth/auth.module';
 import { RegistroModule } from './registro/registro.module';
+import { ImportacionModule } from './importacion/importacion.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { LigasModule } from './ligas/ligas.module';
@@ -30,6 +31,7 @@ import { RapidoModule } from './rapido/rapido.module';
     CommonModule,
     AuthModule,
     RegistroModule,
+    ImportacionModule,
     LigasModule,
     UsuariosModule,
     CategoriasModule,

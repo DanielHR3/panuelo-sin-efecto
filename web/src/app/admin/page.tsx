@@ -10,7 +10,7 @@ import { Vacio } from "./_components/Vacio";
 import { BOTON_PRIMARIO, ROTULO, TITULO_PAGINA } from "./_components/estilos";
 
 const PASOS: { href: string; icono: NombreIcono; texto: string }[] = [
-  { href: "/admin/equipos", icono: "escudo", texto: "Da de alta tus equipos" },
+  { href: "/admin/importar", icono: "escudo", texto: "Sube equipos y calendario (Excel)" },
   { href: "/admin/arbitros", icono: "silbato", texto: "Registra a tus árbitros" },
   { href: "/admin/partidos", icono: "campo", texto: "Programa tus partidos" },
 ];
