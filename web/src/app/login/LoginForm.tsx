@@ -33,13 +33,15 @@ export default function LoginForm() {
       const data = (await res.json()) as { message?: string; usuario?: { rol?: Rol } };
       if (!res.ok) {
         setError(data.message ?? "No se pudo iniciar sesión");
+        setLoading(false);
         return;
       }
+      // Sin router.refresh(): refrescaba /login y cancelaba la navegación
+      // cuando el panel tardaba (API dormida); el botón volvía a "Entrar" sin
+      // haber entrado. El botón sigue en "Entrando…" hasta que cambia la página.
       router.push(destinoTrasLogin(next, data.usuario?.rol));
-      router.refresh();
     } catch {
       setError("No se pudo conectar con el servidor");
-    } finally {
       setLoading(false);
     }
   };

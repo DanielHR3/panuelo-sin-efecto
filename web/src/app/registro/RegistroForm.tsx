@@ -35,13 +35,14 @@ export default function RegistroForm() {
       const data = (await res.json()) as { message?: string };
       if (!res.ok) {
         setError(data.message ?? "No se pudo crear tu cuenta");
+        setLoading(false);
         return;
       }
+      // Sin router.refresh() (ver LoginForm) y sin reactivar el botón: se
+      // queda deshabilitado hasta que cambia la página.
       router.push("/admin");
-      router.refresh();
     } catch {
       setError("No se pudo conectar con el servidor");
-    } finally {
       setLoading(false);
     }
   };
