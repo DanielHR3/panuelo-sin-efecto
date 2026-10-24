@@ -32,6 +32,9 @@ export class RegistroService {
 
   async registrar(dto: RegistroDto) {
     const email = dto.email.trim().toLowerCase();
+    // Si su cuenta anterior se borró, el correo ya usó su mes gratis.
+    const yaTuvoPrueba =
+      (await this.prisma.pruebaUsada.findUnique({ where: { email } })) !== null;
     try {
       const { usuario, liga } = await this.prisma.$transaction(async (tx) => {
         const usuario = await tx.usuario.create({
@@ -54,7 +57,7 @@ export class RegistroService {
             },
             suscripcion: {
               create: suscripcionParaLigaNueva(
-                { esSuperadmin: false, yaTuvoPrueba: false },
+                { esSuperadmin: false, yaTuvoPrueba },
                 this.ahora(),
               ),
             },

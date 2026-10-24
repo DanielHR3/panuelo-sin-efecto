@@ -9,6 +9,7 @@ import { OwnershipService } from '../common/ownership.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateLigaDto } from './dto/create-liga.dto';
 import { UpdateLigaDto } from './dto/update-liga.dto';
+import { eliminarLigaCompleta } from './eliminar-liga';
 import {
   estadoSuscripcion,
   suscripcionParaLigaNueva,
@@ -52,11 +53,15 @@ export class LigasService {
     const esSuperadmin = currentUser.rol === 'SUPERADMIN';
     // La prueba gratis es una por organizador: si alguna de sus ligas ya la
     // tuvo, esta nace sin prueba.
+    // También cuenta una liga ya borrada que la usó (PruebaUsada).
     const yaTuvoPrueba =
       !esSuperadmin &&
-      (await this.prisma.suscripcion.count({
+      ((await this.prisma.suscripcion.count({
         where: { pruebaHasta: { not: null }, liga: { propietarioId } },
-      })) > 0;
+      })) > 0 ||
+        (await this.prisma.pruebaUsada.count({
+          where: { email: currentUser.email.toLowerCase() },
+        })) > 0);
 
     try {
       return await this.prisma.liga.create({
@@ -94,7 +99,14 @@ export class LigasService {
   async findAll(user: AuthUser) {
     const ligas = await this.prisma.liga.findMany({
       where: this.ownership.filtroLigasVisibles(user),
-      include: { categorias: true, suscripcion: true },
+      include: {
+        categorias: true,
+        suscripcion: true,
+        // El SUPERADMIN ve de quién es cada liga (para borrarla con su cuenta).
+        ...(user.rol === 'SUPERADMIN'
+          ? { propietario: { select: { nombre: true, email: true } } }
+          : {}),
+      },
     });
     return ligas.map(conEstado);
   }
@@ -121,8 +133,37 @@ export class LigasService {
     return this.prisma.liga.update({ where: { id }, data });
   }
 
-  async remove(id: string, user: AuthUser) {
+  /**
+   * El SUPERADMIN borra la liga con todo su contenido (y, si lo pide, la
+   * cuenta del organizador), confirmando con el nombre exacto. Un
+   * organizador solo puede borrar una liga vacía.
+   */
+  async remove(
+    id: string,
+    user: AuthUser,
+    opciones: { confirmar?: string; borrarCuenta?: boolean } = {},
+  ) {
     await this.ownership.assertCanManageLiga(id, user);
+    if (user.rol === 'SUPERADMIN') {
+      const liga = await this.prisma.liga.findUnique({
+        where: { id },
+        select: { nombre: true },
+      });
+      if (!liga) throw new NotFoundException(`Liga con ID ${id} no encontrada`);
+      if (opciones.confirmar?.trim() !== liga.nombre.trim()) {
+        throw new BadRequestException(
+          'Escribe el nombre exacto de la liga para confirmar',
+        );
+      }
+      const resumen = await this.prisma.$transaction(
+        (tx) =>
+          eliminarLigaCompleta(tx, id, {
+            borrarCuenta: opciones.borrarCuenta === true,
+          }),
+        { timeout: 30_000 },
+      );
+      return { id, deleted: true, resumen };
+    }
     try {
       await this.prisma.liga.delete({ where: { id } });
     } catch (error) {

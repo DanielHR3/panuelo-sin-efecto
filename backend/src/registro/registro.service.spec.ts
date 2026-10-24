@@ -11,6 +11,7 @@ describe('RegistroService', () => {
     liga: { create: jest.fn() },
   };
   const prisma = {
+    pruebaUsada: { findUnique: jest.fn() },
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const jwt = { signAsync: jest.fn().mockResolvedValue('token-123') };
@@ -34,6 +35,19 @@ describe('RegistroService', () => {
       rol: 'LIGA_ADMIN',
     });
     tx.liga.create.mockResolvedValue({ id: 'l1' });
+    prisma.pruebaUsada.findUnique.mockResolvedValue(null);
+  });
+
+  it('si el correo ya usó su mes gratis (cuenta borrada), la liga nace sin prueba', async () => {
+    prisma.pruebaUsada.findUnique.mockResolvedValue({ email: 'laura@liga.mx' });
+    await service.registrar(dto);
+    expect(prisma.pruebaUsada.findUnique).toHaveBeenCalledWith({
+      where: { email: 'laura@liga.mx' },
+    });
+    const [[arg]] = tx.liga.create.mock.calls as [
+      [{ data: { suscripcion: { create: { pruebaHasta: Date | null } } } }],
+    ];
+    expect(arg.data.suscripcion.create.pruebaHasta).toBeNull();
   });
 
   it('crea al organizador (LIGA_ADMIN) con la contraseña hasheada y email normalizado', async () => {

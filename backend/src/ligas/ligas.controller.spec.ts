@@ -49,6 +49,18 @@ describe('LigasController', () => {
   it('delega remove() en el servicio con el id y el usuario', () => {
     const user = { sub: 'u1', email: 'a@b.c', rol: 'LIGA_ADMIN' as const };
     void controller.remove('liga-123', user);
-    expect(mockLigasService.remove).toHaveBeenCalledWith('liga-123', user);
+    expect(mockLigasService.remove).toHaveBeenCalledWith('liga-123', user, {
+      confirmar: undefined,
+      borrarCuenta: false,
+    });
+  });
+
+  it('pasa la confirmación y borrarCuenta=true del query al servicio', () => {
+    const user = { sub: 'u1', email: 'a@b.c', rol: 'SUPERADMIN' as const };
+    void controller.remove('liga-123', user, 'Liga X', 'true');
+    expect(mockLigasService.remove).toHaveBeenCalledWith('liga-123', user, {
+      confirmar: 'Liga X',
+      borrarCuenta: true,
+    });
   });
 });

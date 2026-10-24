@@ -110,6 +110,9 @@ export default function AdminShell({
           {rol === "SUPERADMIN" && (
             <SidebarLink href="/admin/pagos" icon="grafica" label="Pagos" activo={activo("/admin/pagos")} onNavigate={cerrarNav} />
           )}
+          {rol === "SUPERADMIN" && (
+            <SidebarLink href="/admin/bitacora" icon="reglamento" label="Bitácora" activo={activo("/admin/bitacora")} onNavigate={cerrarNav} />
+          )}
           {(rol === "SUPERADMIN" || rol === "LIGA_ADMIN") && (
             <SidebarLink href="/admin/arbitros" icon="silbato" label="Árbitros" activo={activo("/admin/arbitros")} onNavigate={cerrarNav} />
           )}
