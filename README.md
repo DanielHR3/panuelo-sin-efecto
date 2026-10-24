@@ -59,6 +59,10 @@ Pasos, en orden:
 3. Superadmin inicial: definir `SEED_SUPERADMIN_PASSWORD` en las variables del servicio de Render. La API lo crea sola al arrancar (idempotente); no hace falta shell ni seed manual.
 4. Vercel: importar el repo, *Root Directory* `web`, variable `NEXT_PUBLIC_API_URL` = URL pública de la API en Render.
 5. Render: poner `CORS_ORIGINS` = URL de Vercel y volver a desplegar.
-6. Opcional: un ping gratuito cada 10 min a la URL de la API (cron-job.org o UptimeRobot) para que no se duerma durante un partido.
+6. Ping anti-sueño: `keep-alive.yml` (GitHub Actions, cada 10 min) más un monitor HTTP gratuito de UptimeRobot cada 5 min sobre la URL de la API; sin esto la API tarda ~1 min en despertar durante un partido.
+7. Cobro por SPEI: capturar en Render `PAGO_CLABE`, `PAGO_BANCO` y `PAGO_BENEFICIARIO` (ver `backend/.env.example`). Mientras falte alguna, `/admin/plan` avisa que el pago no está configurado. Los datos bancarios nunca van en el código ni en el repo.
+8. Vercel define `VERCEL_GIT_COMMIT_SHA` solo; la web lo usa como `NEXT_PUBLIC_VERSION` para que la PWA instalada se actualice al volver al frente. No fijar `deploymentId` en `next.config.ts` (rompe el build en Vercel, error E971).
+
+Variables opcionales de la API: `SEED_DEMO=false` desactiva la liga demo que se crea al arrancar; `JWT_EXPIRES_IN` (por defecto 7d).
 
 El runbook detallado con verificación paso a paso y solución de problemas vive en la bóveda de Obsidian (`03_Gestion_Proyecto/06_Runbook_Despliegue_Gratis_y_Pruebas.md`).
