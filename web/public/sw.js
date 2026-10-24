@@ -31,6 +31,10 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
   if (request.headers.get("RSC") || request.headers.get("Next-Router-Prefetch")) return;
+  // Video y audio piden el archivo por tramos (Range → 206). Pasarlos por el
+  // service worker rompe la reproducción en Safari/iPhone y la caché no admite
+  // respuestas parciales: el navegador los pide directo.
+  if (request.headers.has("range") || request.destination === "video" || request.destination === "audio") return;
 
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
