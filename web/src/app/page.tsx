@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icono } from "@/components/icons/Icono";
 import { EtiquetaDemo } from "./_publico/EtiquetaDemo";
 import { fetchPublico } from "@/lib/publico";
 import type { CategoriaPublica, LigaPublica, PartidoPublico, ResumenPublico } from "@/lib/types";
@@ -64,6 +65,13 @@ export default async function LandingPage() {
               </Link>
             </div>
             <p className="text-sm text-suave">Arbitrar no requiere cuenta ni contraseña.</p>
+            <Link
+              href="/como-funciona"
+              className="self-start inline-flex items-center gap-2 min-h-11 font-semibold text-panuelo-texto underline"
+            >
+              <Icono nombre="monitor" />
+              Cómo funciona (video de 45 s)
+            </Link>
           </div>
           {destacado && (
             <MarcadorHero partido={destacado.partido} etiqueta={destacado.etiqueta} liga={destacado.liga} />

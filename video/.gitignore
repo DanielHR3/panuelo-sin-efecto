@@ -1,0 +1,9 @@
+# Se regeneran con `manimgx render`.
+*.mp4
+*.srt
+*.png
+storyboard*/
+media/
+.voces/
+__pycache__/
+voice/
