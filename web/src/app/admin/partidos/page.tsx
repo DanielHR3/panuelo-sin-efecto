@@ -1,4 +1,5 @@
 import { authedFetch } from "@/lib/server-api";
+import { formatearFecha } from "@/lib/zona";
 import { arbitrosAsignables } from "@/lib/arbitros";
 import type {
   Liga,
@@ -267,7 +268,7 @@ function PartidoCard({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className={ROTULO}>
-            {new Date(partido.fechaHora).toLocaleString("es-MX", {
+            {formatearFecha(partido.fechaHora, {
               dateStyle: "medium",
               timeStyle: "short",
             })}
@@ -416,7 +417,7 @@ function describirEventoDiscrepancia(
   // elegir entre sí. Mismo formato "#numero nombre" que MvpModal/ActionModal.
   const jugador = e.jugadorId ? jugadoresPorId.get(e.jugadorId) : undefined;
   const nombreJugador = jugador ? `#${jugador.numeroJersey} ${jugador.nombre}` : "sin jugador";
-  return `${e.tipoEvento} · ${nombreEquipo} · ${nombreJugador} · ${nombreArbitro} · ${new Date(e.timestamp).toLocaleTimeString("es-MX")}`;
+  return `${e.tipoEvento} · ${nombreEquipo} · ${nombreJugador} · ${nombreArbitro} · ${formatearFecha(e.timestamp, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
 }
 
 function DiscrepanciaResueltaRow({
@@ -449,7 +450,7 @@ function DiscrepanciaResueltaRow({
           {discrepancia.resolvedAt && (
             <span className="font-normal text-suave">
               {" · "}
-              {new Date(discrepancia.resolvedAt).toLocaleString("es-MX", {
+              {formatearFecha(discrepancia.resolvedAt, {
                 dateStyle: "medium",
                 timeStyle: "short",
               })}

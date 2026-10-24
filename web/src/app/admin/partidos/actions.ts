@@ -1,5 +1,6 @@
 "use server";
 
+import { fechaLocalAISO } from "@/lib/zona";
 import { revalidatePath } from "next/cache";
 import { authedFetch } from "@/lib/server-api";
 import { ApiError } from "@/lib/api";
@@ -32,8 +33,9 @@ export async function crearPartido(
     await authedFetch(`/categorias/${categoriaId}/partidos`, {
       method: "POST",
       body: JSON.stringify({
-        // <input type="datetime-local"> no lleva zona horaria; se interpreta en hora local del navegador.
-        fechaHora: new Date(fechaHora).toISOString(),
+        // <input type="datetime-local"> no lleva zona horaria y esta acción
+        // corre en el servidor (UTC): se interpreta como hora de México.
+        fechaHora: fechaLocalAISO(fechaHora),
         dificultad,
         equipoLocalId,
         equipoVisitanteId,

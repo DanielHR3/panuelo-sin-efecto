@@ -1,4 +1,5 @@
 import type { ResumenPartido } from "./types";
+import { formatearFecha } from "@/lib/zona";
 
 /**
  * Texto plano del resultado para WhatsApp y similares (Web Share API). Va
@@ -6,7 +7,7 @@ import type { ResumenPartido } from "./types";
  * abrir nada; el enlace al final lleva al detalle.
  */
 export function textoCompartir(p: ResumenPartido, url: string): string {
-  const fecha = new Date(p.fechaHora).toLocaleDateString("es-MX", {
+  const fecha = formatearFecha(p.fechaHora, {
     day: "numeric",
     month: "short",
   });

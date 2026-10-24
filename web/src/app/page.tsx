@@ -36,46 +36,38 @@ export default async function LandingPage() {
     <div className="flex-1 flex flex-col">
       <EncabezadoPublico />
 
+      {/* La presentación va siempre arriba: antes el marcador destacado la
+          reemplazaba y en el celular la portada parecía la página de una liga. */}
       <section className="border-b border-texto/10">
-        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
-          {destacado ? (
-            <MarcadorHero partido={destacado.partido} etiqueta={destacado.etiqueta} liga={destacado.liga} />
-          ) : (
-            <div className="flex flex-col gap-5 max-w-2xl">
-              <h1 className="titulo-estadio text-5xl sm:text-7xl leading-[0.92]">
-                El marcador de tu liga, en vivo y sin papel.
-              </h1>
-              <p className="text-lg text-suave max-w-prose">
-                Los árbitros anotan desde el celular, aunque no haya señal en el campo. Aquí
-                aparecen los resultados, la tabla de posiciones y las estadísticas de cada
-                jugador en cuanto termina el partido.
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  href="/arbitrar"
-                  className="boton-panuelo px-5 py-3 text-lg active:scale-95 transition-transform"
-                >
-                  Arbitrar un partido ahora
-                </Link>
-                <span className="text-sm text-suave">Sin cuenta ni contraseña.</span>
-              </div>
+        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex flex-col gap-8">
+          <div className="flex flex-col gap-4 max-w-2xl">
+            <h1 className="titulo-estadio text-4xl sm:text-7xl leading-[0.92]">
+              El marcador de tu liga, en vivo y sin papel.
+            </h1>
+            <p className="text-base sm:text-lg text-suave max-w-prose">
+              Los árbitros anotan desde el celular, aunque no haya señal en el campo. Aquí
+              aparecen los resultados, la tabla de posiciones y las estadísticas de cada
+              jugador en cuanto termina el partido.
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Link
+                href="/registro"
+                className="boton-panuelo px-5 py-3 min-h-12 text-lg text-center active:scale-95 transition-transform"
+              >
+                Registra tu liga · 1 mes gratis
+              </Link>
+              <Link
+                href="/arbitrar"
+                className="px-5 py-3 min-h-12 rounded-lg border-2 border-texto/20 font-display font-bold uppercase tracking-[0.04em] text-center hover:border-panuelo-texto"
+              >
+                Arbitrar un partido ahora
+              </Link>
             </div>
+            <p className="text-sm text-suave">Arbitrar no requiere cuenta ni contraseña.</p>
+          </div>
+          {destacado && (
+            <MarcadorHero partido={destacado.partido} etiqueta={destacado.etiqueta} liga={destacado.liga} />
           )}
-        </div>
-      </section>
-
-      <section className="border-b border-texto/10 bg-panel">
-        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
-          <p className="font-semibold">
-            ¿Organizas una liga?{" "}
-            <span className="text-suave font-normal">Tu marcador, tabla y estadísticas, gratis el primer mes.</span>
-          </p>
-          <Link
-            href="/registro"
-            className="boton-panuelo px-5 py-3 min-h-12 text-center shrink-0 active:scale-95 transition-transform"
-          >
-            Registra tu liga
-          </Link>
         </div>
       </section>
 
