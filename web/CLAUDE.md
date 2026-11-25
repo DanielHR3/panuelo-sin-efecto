@@ -22,3 +22,30 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+---
+
+<!-- auditores:inicio -->
+## 🛡️ Auditores del proyecto
+
+Skills `auditor-*` en `~/.claude/skills/` (fuente: bóveda `01 Proyectos/Auditores/`; ciclo en `01 Proyectos/Marcos Metodologicos Freelance/Sistema de Auditoria y Calidad.md`). Los auditores **ponen a prueba, no corrigen**: exigen evidencia y emiten veredicto (Listo · Ajustes puntuales · Iteración profunda).
+
+| Momento | Auditor | Qué entregarle |
+|---|---|---|
+| Al terminar una pantalla o flujo (escritorio + `390px` / dispositivo) | `auditor-ux` | URL o capturas, rol y tarea crítica; estados carga/vacío/error |
+| Antes de fijar logo, favicon o icono de la app | `auditor-logos` | Archivos, dónde aparecen y con qué marcas conviven |
+| Antes de producción (capa cliente) | `auditor-seguridad` | Código, `.env.example`, config de build; cero llaves en el bundle, cero seguridad de fachada |
+
+**Regla de trabajo para el agente**
+- No declares nada «listo» sin evidencia (build, prueba, captura o petición ejecutada); lo no probado se reporta «no probado».
+- Ante «audita …», entra en modo auditor: no reescribas código en ese paso; hallazgos con severidad, evidencia y pregunta crítica.
+- Informe en la carpeta `Auditorias/` del proyecto en Obsidian: `AAAA-MM-DD - Auditoria {Tipo} - {Proyecto}.md`. Un hallazgo se cierra con evidencia (commit, prueba), no con «ya quedó».
+
+**Obligatorio sí o sí antes de entregar** (bloqueante; se cierra con evidencia; lista completa en `01 Proyectos/Marcos Metodologicos Freelance/Obligatorios de Auditoria por Proyecto.md`):
+- [ ] Sync offline idempotente: la misma cola 3 veces no duplica puntos (e2e)
+- [ ] Marcador solo por inserción de `Eventos`, nunca `UPDATE`
+- [ ] Árbitro no anota en partido ajeno (token ajeno → 403/404)
+- [ ] Swagger completo + colección con casos negativos
+- [ ] Cortar la red a mitad del partido no pierde eventos (teléfono real)
+- [ ] Marcador usable con una mano y al sol, en modo claro
+<!-- auditores:fin -->
